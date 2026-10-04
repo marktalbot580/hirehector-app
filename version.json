@@ -1,6 +1,14 @@
 {
- "version": "1.3.1",
+ "version": "1.4.0",
  "history": [
+  {
+   "version": "1.4.0",
+   "date": "4 Oct 2026",
+   "notes": [
+    "Signed agreements wait for your approval before they are filed in Contracts and added to the calendar",
+    "Quotes no longer show on the calendar until the booking is approved"
+   ]
+  },
   {
    "version": "1.3.1",
    "date": "4 Oct 2026",

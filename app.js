@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.3.1';
+  const APP_VERSION = '1.4.0';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -185,7 +185,10 @@
     } else if (cs === 'approved') {
       h += '<div class="sub">Approved' + (b.approved_at ? ' on ' + esc(stamp(b.approved_at)) : '') + '. Waiting for the client to sign.</div><div class="row"><button class="btn2" data-act="sendlink" data-kind="contract" data-id="' + b.id + '">Send the link again</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button></div>';
     } else if (cs === 'signed') {
-      h += '<div class="notice ok">Signed by ' + esc(b.signed_name) + ' on ' + esc(stamp(b.signed_at)) + '.</div>' + (b.contract_file ? '<div class="row"><button class="btn2" data-act="openfile" data-path="' + esc(b.contract_file) + '">Open signed copy</button></div>' : '<div class="sub">The signed copy will be filed in Contracts automatically.</div>');
+      h += '<div class="notice">Signed by ' + esc(b.signed_name) + ' on ' + esc(stamp(b.signed_at)) + '. Please check the signed agreement. It is not in Contracts or the calendar until you approve it.</div>' +
+        '<div class="row"><button class="btn2" data-act="previewsigned" data-id="' + b.id + '">Review signed agreement</button><button class="btn" data-act="approvesigned" data-id="' + b.id + '">Approve and confirm booking</button></div>';
+    } else if (cs === 'confirmed') {
+      h += '<div class="notice ok">Confirmed. Signed by ' + esc(b.signed_name) + ' on ' + esc(stamp(b.signed_at)) + '. Filed in Contracts and on the calendar.</div>' + (b.contract_file ? '<div class="row"><button class="btn2" data-act="openfile" data-path="' + esc(b.contract_file) + '">Open signed copy</button></div>' : '');
     } else { h += '<div class="sub">Nothing waiting for this booking.</div>'; }
     return h + '</section>';
   }
@@ -207,20 +210,15 @@
       ev.push({ b, t, text: b.signed_at ? b.client + ' has signed their agreement' : b.client + ' has accepted their quote' });
     });
     if (!ev.length) return '';
-    return '<section class="card stack" style="border-color:#B5D8BC;background:#F3FAF4"><h2>New</h2>' + ev.sort((x, y) => (x.t < y.t ? 1 : -1)).map((e) => '<div class="row sp"><a class="grow" href="#/booking/' + e.b.id + '"><b>' + esc(e.text) + '</b><div class="sub">' + esc(stamp(e.t)) + (e.b.signed_at ? '' : ' · review the agreement') + '</div></a><button class="btn2" data-act="ack" data-id="' + e.b.id + '">Done</button></div>').join('') + '</section>';
+    return '<section class="card stack" style="border-color:#B5D8BC;background:#F3FAF4"><h2>New</h2>' + ev.sort((x, y) => (x.t < y.t ? 1 : -1)).map((e) => '<div class="row sp"><a class="grow" href="#/booking/' + e.b.id + '"><b>' + esc(e.text) + '</b><div class="sub">' + esc(stamp(e.t)) + (e.b.signed_at ? ' · check it and approve' : ' · review the agreement') + '</div></a><button class="btn2" data-act="ack" data-id="' + e.b.id + '">Done</button></div>').join('') + '</section>';
   }
-  async function fileSigned() {
-    S.filing = S.filing || {};
-    for (const b of S.bookings) {
-      if (b.contract_status !== 'signed' || !b.signature || !b.hire_date || S.filing[b.id] || (b.contract_file || '').indexOf('_signed') > -1) continue;
-      S.filing[b.id] = 1;
-      try {
-        const doc = window.HHPDF.contract(b, getSettings(), calc(b)), name = slug(b.client) + '_' + compact(b.hire_date) + '_signed.pdf', path = 'contracts/' + b.hire_date.slice(0, 4) + '/' + name;
-        await upload(path, new File([doc.output('blob')], name, { type: 'application/pdf' }));
-        const { error } = await sb.from('bookings').update({ contract_file: path }).eq('id', b.id); if (error) throw error;
-        b.contract_file = path; toast('Signed agreement from ' + b.client + ' filed in Contracts'); render.keep = true; render();
-      } catch (e) { console.error(e); }
-    }
+  async function approveSigned(id) {
+    const b = S.bookings.find((x) => x.id === id); if (!b || !b.hire_date) { toast('Add the date of hire first.'); return; }
+    const doc = window.HHPDF.contract(b, getSettings(), calc(b)), name = slug(b.client) + '_' + compact(b.hire_date) + '_signed.pdf', path = 'contracts/' + b.hire_date.slice(0, 4) + '/' + name;
+    await upload(path, new File([doc.output('blob')], name, { type: 'application/pdf' }));
+    const now = new Date().toISOString(), { error } = await sb.from('bookings').update({ status: 'booked', contract_status: 'confirmed', contract_file: path, acknowledged_at: now }).eq('id', id); if (error) throw error;
+    Object.assign(b, { status: 'booked', contract_status: 'confirmed', contract_file: path, acknowledged_at: now });
+    toast('Approved. Filed in Contracts / ' + b.hire_date.slice(0, 4) + ' and added to the calendar'); render.keep = true; render();
   }
 
   function viewBooking(id) {
@@ -257,7 +255,7 @@
     let cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((h) => '<div class="h">' + h + '</div>').join('');
     for (let i = 0; i < total; i++) {
       const dn = i - lead + 1, inM = dn >= 1 && dn <= days, iso = inM ? y + '-' + pad(m + 1) + '-' + pad(dn) : '';
-      const evs = inM ? S.bookings.filter((b) => b.hire_date === iso).map((b) => '<a class="ev" href="#/booking/' + b.id + '" style="background:' + (b.status === 'quote' ? '#FFF0D2' : b.status === 'booked' ? '#E4F0F3' : '#E3F3EA') + '">' + esc(b.client) + '</a>').join('') : '';
+      const evs = inM ? S.bookings.filter((b) => b.hire_date === iso && b.status !== 'quote').map((b) => '<a class="ev" href="#/booking/' + b.id + '" style="background:' + (b.status === 'quote' ? '#FFF0D2' : b.status === 'booked' ? '#E4F0F3' : '#E3F3EA') + '">' + esc(b.client) + '</a>').join('') : '';
       cells += '<div class="' + (inM ? '' : 'o') + '">' + (inM ? (iso === TODAY ? '<span class="t">' + dn + '</span>' : '<b>' + dn + '</b>') : '') + evs + '</div>';
     }
     const up = S.bookings.filter((b) => b.hire_date >= TODAY && b.status === 'booked');
@@ -476,6 +474,8 @@
         b.contract_status = 'approved'; b.approved_at = now; render.keep = true; render();
         await shareLink(b, 'Your hire agreement is ready to read and sign here:', 'Your HireHector hire agreement');
       }
+      else if (a === 'previewsigned') { const b = S.bookings.find((x) => x.id === id); window.open(window.HHPDF.contract(b, getSettings(), calc(b)).output('bloburl'), '_blank'); }
+      else if (a === 'approvesigned') { if (!confirm('Approve this signed agreement? It will be filed in Contracts and added to the calendar.')) return; await approveSigned(id); }
       else if (a === 'ack') { const now = new Date().toISOString(), { error } = await sb.from('bookings').update({ acknowledged_at: now }).eq('id', id); if (error) throw error; S.bookings.find((x) => x.id === id).acknowledged_at = now; render.keep = true; render(); }
       else if (a === 'checkupdate') { await checkUpdate(); }
       else if (a === 'doupdate') { location.href = location.pathname + '?u=' + Date.now() + location.hash; }
@@ -555,7 +555,7 @@
   /* ---------- start ---------- */
   async function onSession(session) {
     S.user = session ? session.user : null; S.ready = false; render();
-    if (S.user) { try { await load(); } catch (e) { console.error(e); render.err = null; toast('Could not load: ' + e.message); } render(); fileSigned(); }
+    if (S.user) { try { await load(); } catch (e) { console.error(e); render.err = null; toast('Could not load: ' + e.message); } render(); }
   }
   sb.auth.getSession().then((r) => onSession(r.data.session));
   if (FORCE_PW) S.setpw = true;

@@ -50,8 +50,8 @@
       h += '<p class="big">Hello ' + first + ', thank you for choosing ' + esc(s.business_name || 'HireHector') + '. Please check the details below, then press Accept to secure your date.</p>' + summary() + termsBlock() +
         '<section class="card stack"><label class="chk"><input type="checkbox" id="agree"><span>I have read the terms and conditions and I would like to book.</span></label>' +
         '<button class="btn" id="accept" disabled>Accept quote</button><button class="btn2" id="dlq">Download quote (PDF)</button></section>';
-    } else if (st === 'signed') {
-      h += '<div class="notice ok"><b>All done.</b> Your hire agreement was signed by ' + esc(D.signed_name) + ' on ' + esc(new Date(D.signed_at).toLocaleString('en-GB')) + '. Thank you.</div>' + summary() +
+    } else if (st === 'signed' || st === 'confirmed') {
+      h += '<div class="notice ok"><b>All done.</b> Your hire agreement was signed by ' + esc(D.signed_name) + ' on ' + esc(new Date(D.signed_at).toLocaleString('en-GB')) + '. Thank you. We will check it and confirm your booking.</div>' + summary() +
         '<section class="card stack"><button class="btn" id="dls">Download your signed agreement (PDF)</button></section>';
     } else if (st === 'approved') {
       h += '<p class="big">Your hire agreement is ready. Please read it, then sign below.</p>' + summary() + termsBlock() +
