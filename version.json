@@ -1,0 +1,30 @@
+{
+ "version": "1.2.0",
+ "history": [
+  {
+   "version": "1.2.0",
+   "date": "4 Oct 2026",
+   "notes": [
+    "Clients accept quotes and sign agreements online from a private link",
+    "New alerts on the home page, with signed agreements filed automatically",
+    "Balance due one month before the hire date",
+    "Version card with an update button"
+   ]
+  },
+  {
+   "version": "1.1.0",
+   "date": "4 Oct 2026",
+   "notes": [
+    "Smarter looking quote, invoice and hire agreement PDFs",
+    "Set and change password, forgot password"
+   ]
+  },
+  {
+   "version": "1.0.0",
+   "date": "4 Oct 2026",
+   "notes": [
+    "First version: bookings, calendar, contracts, servicing, accounts"
+   ]
+  }
+ ]
+}

@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
+  const APP_VERSION = '1.2.0';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -122,7 +123,7 @@
     const chase = S.bookings.filter((b) => b.status === 'booked' || b.status === 'quote');
     const taken = S.bookings.filter((b) => b.status === 'complete' || b.status === 'booked').reduce((t, b) => t + num(b.paid), 0);
     const recent = S.bookings.filter((b) => b.hire_date < TODAY && b.status !== 'quote').slice(-5).reverse();
-    return '<header><div class="sub">' + longDate(TODAY) + '</div><h1>Hello</h1></header>' +
+    return '<header><div class="sub">' + longDate(TODAY) + '</div><h1>Hello</h1></header>' + notices() +
       '<div class="grid"><div class="card tile"><div class="eyebrow">Upcoming</div><div class="n">' + up.length + '</div><div class="sub">' + (up[0] ? esc(up[0].client) + ', ' + shortDate(up[0].hire_date) : 'Nothing booked') + '</div></div>' +
       '<div class="card tile"><div class="eyebrow">Jobs completed</div><div class="n">' + done.length + '</div></div>' +
       '<div class="card tile"><div class="eyebrow">Balances to collect</div><div class="n" style="color:#7A1F2E">' + money(up.reduce((t, b) => t + due(b), 0)) + '</div></div>' +
@@ -162,6 +163,53 @@
       (b.id ? '<button class="btn2 danger" type="button" data-act="delbooking" data-id="' + b.id + '">Delete</button>' : '') + '</div></form>';
   }
 
+  function clientUrl(b) { return location.origin + location.pathname.replace(/[^/]*$/, '') + 'client.html?t=' + b.quote_token; }
+  function stamp(iso) { return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  function workflowCard(b) {
+    const cs = b.contract_status || (b.status === 'booked' ? 'review' : null);
+    let h = '<section class="card stack"><h2>Client link and agreement</h2>';
+    if (b.status === 'quote' && !b.accepted_at) {
+      h += '<div class="sub">The client opens a private page, reads the quote and presses Accept. You will see it here and on the home page.</div><div class="row"><button class="btn" data-act="sendlink" data-kind="quote" data-id="' + b.id + '">Send quote with Accept button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button></div>';
+    } else if (cs === 'review') {
+      h += '<div class="notice ok">' + (b.accepted_at ? 'Accepted by the client on ' + esc(stamp(b.accepted_at)) + '.' : 'Booked.') + ' Review the agreement, then approve it to send the signing link.</div>' +
+        '<div class="row"><button class="btn2" data-act="preview" data-id="' + b.id + '">Review agreement</button><button class="btn" data-act="approve" data-id="' + b.id + '">Approve and send signing link</button></div>';
+    } else if (cs === 'approved') {
+      h += '<div class="sub">Approved' + (b.approved_at ? ' on ' + esc(stamp(b.approved_at)) : '') + '. Waiting for the client to sign.</div><div class="row"><button class="btn2" data-act="sendlink" data-kind="contract" data-id="' + b.id + '">Send the link again</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button></div>';
+    } else if (cs === 'signed') {
+      h += '<div class="notice ok">Signed by ' + esc(b.signed_name) + ' on ' + esc(stamp(b.signed_at)) + '.</div>' + (b.contract_file ? '<div class="row"><button class="btn2" data-act="openfile" data-path="' + esc(b.contract_file) + '">Open signed copy</button></div>' : '<div class="sub">The signed copy will be filed in Contracts automatically.</div>');
+    } else { h += '<div class="sub">Nothing waiting for this booking.</div>'; }
+    return h + '</section>';
+  }
+  async function shareLink(b, text, title) {
+    const url = clientUrl(b), body = 'Hello ' + b.client.split(' ')[0] + ',\n\n' + text + '\n' + url + '\n\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
+    if (navigator.share) { try { await navigator.share({ title, text: body }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+    if (b.email) { location.href = 'mailto:' + encodeURIComponent(b.email) + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body); return; }
+    try { await navigator.clipboard.writeText(url); toast('Link copied. Paste it into a message.'); } catch (e) { prompt('Copy this link', url); }
+  }
+  function notices() {
+    const ev = [];
+    S.bookings.forEach((b) => {
+      const t = b.signed_at || b.accepted_at; if (!t) return;
+      if (b.acknowledged_at && new Date(b.acknowledged_at) >= new Date(t)) return;
+      ev.push({ b, t, text: b.signed_at ? b.client + ' has signed their agreement' : b.client + ' has accepted their quote' });
+    });
+    if (!ev.length) return '';
+    return '<section class="card stack" style="border-color:#B5D8BC;background:#F3FAF4"><h2>New</h2>' + ev.sort((x, y) => (x.t < y.t ? 1 : -1)).map((e) => '<div class="row sp"><a class="grow" href="#/booking/' + e.b.id + '"><b>' + esc(e.text) + '</b><div class="sub">' + esc(stamp(e.t)) + (e.b.signed_at ? '' : ' · review the agreement') + '</div></a><button class="btn2" data-act="ack" data-id="' + e.b.id + '">Done</button></div>').join('') + '</section>';
+  }
+  async function fileSigned() {
+    S.filing = S.filing || {};
+    for (const b of S.bookings) {
+      if (b.contract_status !== 'signed' || !b.signature || !b.hire_date || S.filing[b.id] || (b.contract_file || '').indexOf('_signed') > -1) continue;
+      S.filing[b.id] = 1;
+      try {
+        const doc = window.HHPDF.contract(b, getSettings(), calc(b)), name = slug(b.client) + '_' + compact(b.hire_date) + '_signed.pdf', path = 'contracts/' + b.hire_date.slice(0, 4) + '/' + name;
+        await upload(path, new File([doc.output('blob')], name, { type: 'application/pdf' }));
+        const { error } = await sb.from('bookings').update({ contract_file: path }).eq('id', b.id); if (error) throw error;
+        b.contract_file = path; toast('Signed agreement from ' + b.client + ' filed in Contracts'); render.keep = true; render();
+      } catch (e) { console.error(e); }
+    }
+  }
+
   function viewBooking(id) {
     const b = S.bookings.find((x) => x.id === id);
     if (!b) return '<p>Booking not found. <a href="#/bookings">Back to bookings</a></p>';
@@ -170,6 +218,7 @@
     return '<header><a class="link" href="#/bookings">&lsaquo; Bookings</a><h1>' + esc(b.client) + '</h1><div class="row">' + chip(b.status) + '<span class="sub">' + esc(longDate(b.hire_date)) + ' · ' + esc(vanLabel(b)) + '</span></div></header>' +
       '<section class="card stack"><h2>Money</h2><div><div class="kv"><span>Hire price</span><b>' + money(c.cost) + '</b></div><div class="kv"><span>Booking fee (' + Math.round(feeShare() * 1000) / 10 + '%)</span><b>' + money(c.fee) + '</b></div><div class="kv"><span>Paid so far</span><b>' + money(c.paid) + '</b></div><div class="kv tot"><span>Still to pay</span><b>' + money(Math.max(c.cost - c.paid, 0)) + '</b></div></div>' +
       '<div class="sub">' + esc(milesLine(b)) + (fuel != null ? ' (estimate)' : '') + '</div></section>' +
+      workflowCard(b) +
       '<section class="card stack"><h2>Documents</h2><div class="row"><button class="btn" data-act="doc" data-kind="quote" data-id="' + b.id + '">Quote PDF</button><button class="btn" data-act="doc" data-kind="contract" data-id="' + b.id + '">Contract PDF</button><button class="btn" data-act="doc" data-kind="invoice" data-id="' + b.id + '">Invoice PDF</button></div>' +
       '<div class="sub">On a phone the share sheet opens with the PDF attached, so you can choose Mail or Gmail and press send.' + (b.email ? ' Client email: ' + esc(b.email) : ' Add the client email below first.') + '</div>' +
       (b.contract_file ? '<div class="row"><span>Contract on file: ' + esc(b.contract_file.split('/').pop()) + '</span><button class="btn2" data-act="openfile" data-path="' + esc(b.contract_file) + '">Open</button></div>' : '<div class="sub">No contract filed yet. Making the contract PDF files it in Contracts / ' + esc((b.hire_date || '').slice(0, 4)) + '.</div>') + '</section>' +
@@ -279,7 +328,23 @@
   function viewMore() {
     return '<header><h1>More</h1></header><section class="card">' + NAV.filter((n) => !n[3]).map((n) => '<a class="item" href="#/' + n[0] + '">' + n[1] + '</a>').join('') + '<a class="item" href="#/password">Change password</a><button class="item btn2" style="width:100%;margin-top:8px" data-act="signout">Sign out</button></section>';
   }
+  async function checkUpdate() {
+    try { const r = await fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }); S.latest = await r.json(); S.latestErr = null; } catch (e) { S.latestErr = 'Could not check just now. Try again in a moment.'; }
+    render.keep = true; render();
+  }
+  function versionCard() {
+    const L = S.latest, newer = L && L.version && L.version !== APP_VERSION;
+    let h = '<section class="card stack"><h2>Version</h2><div class="kv"><span>You are using</span><b>' + esc(APP_VERSION) + '</b></div>';
+    if (L) h += '<div class="kv"><span>Latest available</span><b>' + esc(L.version) + '</b></div>';
+    if (S.latestErr) h += '<div class="notice err">' + esc(S.latestErr) + '</div>';
+    if (newer) h += '<div class="notice">A new version is ready.</div><div class="row"><button class="btn" type="button" data-act="doupdate">Update now</button></div>';
+    else if (L) h += '<div class="notice ok">You have the latest version.</div><div class="row"><button class="btn2" type="button" data-act="checkupdate">Check again</button></div>';
+    else h += '<div class="row"><button class="btn2" type="button" data-act="checkupdate">Check for updates</button></div>';
+    if (L && L.history) h += '<details><summary>What is new</summary>' + L.history.map((x) => '<div style="margin-top:10px"><b>' + esc(x.version) + '</b> <span class="sub">' + esc(x.date) + '</span><ul style="margin:4px 0 0 18px;padding:0">' + x.notes.map((n) => '<li>' + esc(n) + '</li>').join('') + '</ul></div>').join('') + '</details>';
+    return h + '</section>';
+  }
   function viewSettings() {
+    if (!S.latest && !S.latestErr && !S.checking) { S.checking = true; setTimeout(checkUpdate, 50); }
     const f = (k, label, type, extra) => '<div class="fld"><label for="g_' + k + '">' + label + '</label><input id="g_' + k + '" name="' + k + '" type="' + type + '" ' + (extra || '') + ' value="' + esc(k === 'booking_fee_share' ? Math.round(feeShare() * 10000) / 100 : setting(k, '')) + '"></div>';
     return '<header class="row sp"><div><div class="sub">Used on every new quote, invoice and contract</div><h1>Settings</h1></div></header><form class="stack" data-form="settings">' +
       '<section class="card stack"><h2>Van prices</h2><div class="form">' + f('hector_price', 'Hector starting price (£)', 'number', 'step="5"') + f('helga_price', 'Helga starting price (£)', 'number', 'step="5"') + f('pair_discount', 'Two-van discount (£)', 'number', 'step="5"') + '</div></section>' +
@@ -287,7 +352,7 @@
       '<section class="card stack"><h2>Fuel</h2><div class="form">' + f('hector_fuel_litre', 'Hector price per litre (£, unleaded)', 'number', 'step="0.01"') + f('hector_cost_per_mile', 'Hector cost per mile (£)', 'number', 'step="0.001"') + f('helga_fuel_litre', 'Helga price per litre (£, super unleaded)', 'number', 'step="0.01"') + f('helga_cost_per_mile', 'Helga cost per mile (£)', 'number', 'step="0.001"') + '</div></section>' +
       '<section class="card stack"><h2>Payment details</h2><div class="form">' + f('payee_name', 'Payee name', 'text') + f('sort_code', 'Sort code', 'text') + f('account_number', 'Account number', 'text') + '</div></section>' +
       '<section class="card stack"><h2>Business details</h2><div class="form">' + f('business_name', 'Business name', 'text') + f('owner', 'Owner name', 'text') + f('website', 'Website', 'text') + f('phone', 'Phone', 'tel') + f('email', 'Email', 'email') + f('address', 'Address', 'text') + '</div></section>' +
-      '<div><button class="btn" type="submit">Save settings</button></div></form><div><button class="btn2" data-act="signout">Sign out</button></div>';
+      versionCard() + '<div><button class="btn" type="submit">Save settings</button></div></form><div><button class="btn2" data-act="signout">Sign out</button></div>';
   }
 
   /* ---------- render and routes ---------- */
@@ -311,7 +376,7 @@
   async function deliver(doc, filename, b, subject) {
     const blob = doc.output('blob');
     const file = new File([blob], filename, { type: 'application/pdf' });
-    const body = 'Hello ' + b.client + ',\n\nPlease find attached: ' + subject + '.\n\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
+    const body = 'Hello ' + b.client + ',\n\nPlease find attached: ' + subject + '.\n' + (b.quote_token && /quote/.test(subject) ? '\nYou can accept your quote online here:\n' + clientUrl(b) + '\n' : '') + '\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: subject, text: body }); return; } catch (e) { if (e.name === 'AbortError') return; }
     }
@@ -381,6 +446,25 @@
         const { error } = await sb.from('bookings').update({ status: el.dataset.s }).eq('id', id); if (error) throw error;
         S.bookings.find((x) => x.id === id).status = el.dataset.s; toast('Marked as ' + TONES[el.dataset.s][2].toLowerCase()); render.keep = true; render();
       }
+      else if (a === 'sendlink') {
+        const b = S.bookings.find((x) => x.id === id);
+        if (el.dataset.kind === 'quote') await shareLink(b, 'Here is your quote for ' + longDate(b.hire_date) + '. You can read it and press Accept here:', 'Your HireHector quote');
+        else await shareLink(b, 'Your hire agreement is ready to read and sign here:', 'Your HireHector hire agreement');
+      }
+      else if (a === 'copylink') { const b = S.bookings.find((x) => x.id === id); try { await navigator.clipboard.writeText(clientUrl(b)); toast('Link copied'); } catch (e) { prompt('Copy this link', clientUrl(b)); } }
+      else if (a === 'preview') {
+        const b = S.bookings.find((x) => x.id === id); if (!b.hire_date) { toast('Add the date of hire first.'); return; }
+        window.open(window.HHPDF.contract(b, getSettings(), calc(b)).output('bloburl'), '_blank');
+      }
+      else if (a === 'approve') {
+        const b = S.bookings.find((x) => x.id === id); if (!b.hire_date) { toast('Add the date of hire first.'); return; }
+        const now = new Date().toISOString(), { error } = await sb.from('bookings').update({ contract_status: 'approved', approved_at: now }).eq('id', id); if (error) throw error;
+        b.contract_status = 'approved'; b.approved_at = now; render.keep = true; render();
+        await shareLink(b, 'Your hire agreement is ready to read and sign here:', 'Your HireHector hire agreement');
+      }
+      else if (a === 'ack') { const now = new Date().toISOString(), { error } = await sb.from('bookings').update({ acknowledged_at: now }).eq('id', id); if (error) throw error; S.bookings.find((x) => x.id === id).acknowledged_at = now; render.keep = true; render(); }
+      else if (a === 'checkupdate') { await checkUpdate(); }
+      else if (a === 'doupdate') { location.href = location.pathname + '?u=' + Date.now() + location.hash; }
       else if (a === 'delbooking') {
         if (!confirm('Delete this booking? This cannot be undone.')) return;
         const { error } = await sb.from('bookings').delete().eq('id', id); if (error) throw error;
@@ -446,7 +530,7 @@
   /* ---------- start ---------- */
   async function onSession(session) {
     S.user = session ? session.user : null; S.ready = false; render();
-    if (S.user) { try { await load(); } catch (e) { console.error(e); render.err = null; toast('Could not load: ' + e.message); } render(); }
+    if (S.user) { try { await load(); } catch (e) { console.error(e); render.err = null; toast('Could not load: ' + e.message); } render(); fileSigned(); }
   }
   sb.auth.getSession().then((r) => onSession(r.data.session));
   if (FORCE_PW) S.setpw = true;

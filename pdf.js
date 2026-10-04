@@ -153,7 +153,7 @@
     };
     return w;
   }
-  function ref(b, p) { return p + '-' + (b.hire_date ? b.hire_date.slice(0, 4) : '') + '-' + String(b.id || '').slice(0, 4).toUpperCase(); }
+  function ref(b, p) { return [p, b.hire_date ? b.hire_date.slice(0, 4) : '', String(b.id || '').slice(0, 4).toUpperCase()].filter(Boolean).join('-'); }
   function clientBlock(b) { return b.client + (b.address ? '\n' + b.address : ''); }
   function hireRows(w, b) {
     w.row('Date', longDate(b.hire_date));
@@ -227,12 +227,15 @@
     doc.setDrawColor.apply(doc, INK); doc.setLineWidth(0.3);
     doc.line(w.L, y0 + 20, w.L + colW, y0 + 20); doc.line(x2, y0 + 20, x2 + colW, y0 + 20);
     w.font({ size: 10, color: INK });
-    doc.text(b.client, w.L, y0 + 26);
+    if (b.signature) { try { doc.addImage(b.signature, 'PNG', w.L, y0 + 3, 62, 16); } catch (e) {} }
+    doc.text(b.signed_name || b.client, w.L, y0 + 26);
     doc.text((S.owner ? S.owner + ', for ' : 'For ') + (S.business_name || 'HireHector'), x2, y0 + 26);
     w.font({ size: 9, color: MUTED });
-    doc.text('Date  ____ / ____ / ________', w.L, y0 + 33);
-    doc.text('Date  ' + longDate(today()), x2, y0 + 33);
-    w.y = y0 + 40;
+    const sd = b.signed_at ? new Date(b.signed_at) : null;
+    doc.text(sd ? 'Date  ' + longDate(sd.getFullYear() + '-' + String(sd.getMonth() + 1).padStart(2, '0') + '-' + String(sd.getDate()).padStart(2, '0')) : 'Date  ____ / ____ / ________', w.L, y0 + 33);
+    doc.text('Date  ' + longDate((b.approved_at || '').slice(0, 10) || today()), x2, y0 + 33);
+    if (sd) { w.font({ size: 8, color: MUTED }); doc.text('Signed electronically by ' + (b.signed_name || b.client) + ' on ' + sd.toLocaleString('en-GB') + (b.signed_ip ? ' (IP ' + String(b.signed_ip).split(',')[0] + ')' : '') + '.', w.L, y0 + 39); }
+    w.y = y0 + 44;
 
     doc.addPage(); w.y = TOP_PAGE;
     w.font({ font: 'times', style: 'bold', size: 20, color: INK });
@@ -251,5 +254,5 @@
   }
   const TOP_PAGE = 22;
 
-  window.HHPDF = { quote: quote, invoice: invoice, contract: contract, TERMS: TERMS };
+  window.HHPDF = { quote: quote, invoice: invoice, contract: contract, TERMS: TERMS, longDate: longDate, money: money, vansText: vansText, dueText: dueText };
 })();
