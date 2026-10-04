@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.3.0';
+  const APP_VERSION = '1.3.1';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -389,7 +389,7 @@
   async function deliver(doc, filename, b, subject) {
     const blob = doc.output('blob');
     const file = new File([blob], filename, { type: 'application/pdf' });
-    const body = 'Hello ' + b.client + ',\n\nPlease find attached: ' + subject + '.\n' + (b.quote_token && /quote/.test(subject) ? '\nYou can accept your quote online here:\n' + clientUrl(b) + '\n' : '') + '\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
+    const body = 'Hello ' + b.client.split(' ')[0] + ',\n\nPlease find attached: ' + subject + '.\n' + (b.quote_token && /quote/.test(subject) ? '\nYou can accept your quote online here:\n' + clientUrl(b) + '\n' : '') + '\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: subject, text: body }); return; } catch (e) { if (e.name === 'AbortError') return; }
     }
@@ -408,7 +408,7 @@
       if (error) throw error;
       b.contract_file = path; toast('Contract filed in Contracts / ' + b.hire_date.slice(0, 4)); render.keep = true; render();
       await deliver(doc, base + '.pdf', b, 'your hire agreement');
-    } else if (kind === 'quote') await deliver(doc, 'Quote_' + base + '.pdf', b, 'your quote for ' + longDate(b.hire_date));
+    } else if (kind === 'quote') await deliver(doc, 'Quote_' + base + '.pdf', b, 'your quote for your wedding on ' + longDate(b.hire_date));
     else await deliver(doc, 'Invoice_' + base + '.pdf', b, 'your invoice');
   }
   function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
@@ -462,7 +462,7 @@
       }
       else if (a === 'sendlink') {
         const b = S.bookings.find((x) => x.id === id);
-        if (el.dataset.kind === 'quote') await shareLink(b, 'Here is your quote for ' + longDate(b.hire_date) + '. You can read it and press Accept here:', 'Your HireHector quote');
+        if (el.dataset.kind === 'quote') await shareLink(b, 'Here is your quote for your wedding on ' + longDate(b.hire_date) + '. You can read it and press Accept here:', 'Quote for your wedding on ' + longDate(b.hire_date));
         else await shareLink(b, 'Your hire agreement is ready to read and sign here:', 'Your HireHector hire agreement');
       }
       else if (a === 'copylink') { const b = S.bookings.find((x) => x.id === id); try { await navigator.clipboard.writeText(clientUrl(b)); toast('Link copied'); } catch (e) { prompt('Copy this link', clientUrl(b)); } }

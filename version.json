@@ -1,6 +1,13 @@
 {
- "version": "1.3.0",
+ "version": "1.3.1",
  "history": [
+  {
+   "version": "1.3.1",
+   "date": "4 Oct 2026",
+   "notes": [
+    "Quote wording: \"Quote for your wedding on <date>\" and the client's name in the greeting"
+   ]
+  },
   {
    "version": "1.3.0",
    "date": "4 Oct 2026",

@@ -164,6 +164,7 @@
   function quote(b, S, c) {
     const w = writer(S);
     w.letterhead('Quote', 'Ref ' + ref(b, 'Q') + '  ·  Issued ' + longDate(today()));
+    w.para('For your wedding on ' + longDate(b.hire_date), { size: 12, style: 'italic', font: 'times', color: MUTED, gap: 1 });
     w.label('Prepared for'); w.para(clientBlock(b), { size: 11, gap: 1 });
     w.label('Your hire'); hireRows(w, b);
     w.label('Cost'); w.y += 1;

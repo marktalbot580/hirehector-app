@@ -44,9 +44,10 @@
   function view() {
     if (!D) { app.innerHTML = '<header><div class="logo" style="font-size:34px">HireHector</div></header><section class="card"><h2>Link not found</h2><p>This link is not valid. Please ask us to send it again.</p></section>'; return; }
     const s = D.s || {}, st = D.contract_status;
-    let h = head() + '<h1 style="margin:0">Hello ' + esc((D.client || '').split(' ')[0]) + '</h1>';
+    const first = esc((D.client || '').split(' ')[0]), quoting = D.status === 'quote' && !D.accepted_at;
+    let h = head() + (quoting ? '<h1 style="margin:0">Quote for your wedding on ' + esc(P.longDate(D.hire_date)) + '</h1>' : '<h1 style="margin:0">Hello ' + first + '</h1>');
     if (D.status === 'quote' && !D.accepted_at) {
-      h += '<p class="big">Here is your quote for ' + esc(P.longDate(D.hire_date)) + '. Please check the details, then press accept to secure your date.</p>' + summary() + termsBlock() +
+      h += '<p class="big">Hello ' + first + ', thank you for choosing ' + esc(s.business_name || 'HireHector') + '. Please check the details below, then press Accept to secure your date.</p>' + summary() + termsBlock() +
         '<section class="card stack"><label class="chk"><input type="checkbox" id="agree"><span>I have read the terms and conditions and I would like to book.</span></label>' +
         '<button class="btn" id="accept" disabled>Accept quote</button><button class="btn2" id="dlq">Download quote (PDF)</button></section>';
     } else if (st === 'signed') {
