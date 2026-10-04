@@ -25,6 +25,13 @@
 
   function pd(iso) { const p = String(iso).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function longDate(iso) { if (!iso) return 'Date to be confirmed'; const d = pd(iso); return DOWFULL[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear(); }
+  // Balance is due one month before the hire date
+  function dueDate(iso) {
+    if (!iso) return null; const d = pd(iso), day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); d.setDate(Math.min(day, last));
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function dueText(b) { const d = dueDate(b.hire_date); return d ? longDate(d) : 'one month before your hire date'; }
   function money(n) { n = Number(n) || 0; return '£' + (Number.isInteger(n) ? String(n) : n.toFixed(2)); }
   function vansText(b) {
     if (b.van === 'Both') return 'Hector (' + PLATES.Hector + ') and Helga (' + PLATES.Helga + ')';
@@ -164,7 +171,7 @@
     w.money('Booking fee to secure your date', money(c.fee));
     w.y += 3;
     w.money('Balance after the booking fee', money(c.balance), { total: true });
-    w.y += 7;
+    w.para('The balance is due one month before your hire date, by ' + dueText(b) + '.', { size: 9.5, color: MUTED, gap: 1 }); w.y += 5;
     w.panel('To accept this quote', ['Reply to the email this quote came with and we will hold your date and send your hire agreement.', 'Our vans are hired with a driver.']);
     return w.finish();
   }
@@ -179,7 +186,8 @@
     w.money('Less payments received', '-' + money(c.paid));
     w.y += 3;
     w.money('Balance due', money(Math.max(c.cost - c.paid, 0)), { total: true });
-    w.y += 7;
+    if (c.cost - c.paid > 0) w.para('Please pay by ' + dueText(b) + ', one month before your hire date.', { size: 9.5, color: MUTED, gap: 1 });
+    w.y += 5;
     if (S.payee_name || S.sort_code || S.account_number) {
       w.panel('How to pay', ['Bank transfer to ' + (S.payee_name || ''), 'Sort code ' + (S.sort_code || '') + '    Account number ' + (S.account_number || ''), 'Please use the reference: ' + (b.client.split(' ').pop() || '') + ' ' + (b.hire_date || '')]);
     }
@@ -206,7 +214,7 @@
     clause(w, 2, 'The vehicles', vansText(b) + '\nOur vans are hired with a driver only.');
     clause(w, 3, 'Date and journeys', longDate(b.hire_date) + '\nPick-up and departure times to be confirmed nearer the date.' + (b.journey ? '\n' + b.journey : ''));
     clause(w, 4, 'Cost and payment',
-      'Total hire cost ' + money(c.cost) + '. Booking fee ' + money(c.fee) + ' (non-refundable). Balance ' + money(c.balance) + ', due on [date to be agreed].\n' +
+      'Total hire cost ' + money(c.cost) + '. Booking fee ' + money(c.fee) + ' (non-refundable). Balance ' + money(c.balance) + ', due by ' + dueText(b) + ' (one month before your hire date).\n' +
       'Please pay by bank transfer to ' + (S.payee_name || '[payee]') + ', sort code ' + (S.sort_code || '[sort code]') + ', account number ' + (S.account_number || '[account number]') + '.');
     clause(w, 5, 'Your booking', 'Your booking is provisional until we have received the booking fee and a signed copy of this agreement.');
 
