@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.3.0';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -123,7 +123,7 @@
     const chase = S.bookings.filter((b) => b.status === 'booked' || b.status === 'quote');
     const taken = S.bookings.filter((b) => b.status === 'complete' || b.status === 'booked').reduce((t, b) => t + num(b.paid), 0);
     const recent = S.bookings.filter((b) => b.hire_date < TODAY && b.status !== 'quote').slice(-5).reverse();
-    return '<header><div class="sub">' + longDate(TODAY) + '</div><h1>Hello</h1></header>' + notices() +
+    return '<header><div class="sub">' + longDate(TODAY) + '</div><h1>Hello</h1></header>' + draftCard() + notices() +
       '<div class="grid"><div class="card tile"><div class="eyebrow">Upcoming</div><div class="n">' + up.length + '</div><div class="sub">' + (up[0] ? esc(up[0].client) + ', ' + shortDate(up[0].hire_date) : 'Nothing booked') + '</div></div>' +
       '<div class="card tile"><div class="eyebrow">Jobs completed</div><div class="n">' + done.length + '</div></div>' +
       '<div class="card tile"><div class="eyebrow">Balances to collect</div><div class="n" style="color:#7A1F2E">' + money(up.reduce((t, b) => t + due(b), 0)) + '</div></div>' +
@@ -146,15 +146,24 @@
       '<section class="card">' + (rows.length ? rows.map(bookingRow).join('') : '<p class="sub">No bookings match those filters.</p>') + '</section>';
   }
 
-  function bookingForm(b) {
-    b = b || { van: 'Both', status: 'quote', cost: '', paid: 0 };
+  function autoPrice(van) {
+    const h = num(setting('hector_price', 0)), g = num(setting('helga_price', 0)), disc = num(setting('pair_discount', 0));
+    return van === 'Both' ? Math.max(h + g - disc, 0) : van === 'Hector' ? h : van === 'Helga' ? g : '';
+  }
+  const DRAFT_KEY = 'hh_draft_quote';
+  function getDraft() { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); return d && typeof d === 'object' ? d : null; } catch (e) { return null; } }
+  function setDraft(o) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(o)); } catch (e) { /* storage unavailable */ } }
+  function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* ignore */ } }
+  function draftHasContent(d) { return !!(d && (d.client || d.email || d.phone || d.hire_date || d.address || d.journey || d.note)); }
+  function bookingForm(b, draft) {
+    b = b || Object.assign({ van: 'Both', status: 'quote', cost: autoPrice('Both'), paid: 0 }, draft || {});
     const f = (n, label, type, val, extra) => '<div class="fld ' + ((extra && extra.wide) ? 'wide' : '') + '"><label for="f_' + n + '">' + label + '</label><input id="f_' + n + '" name="' + n + '" type="' + type + '" value="' + esc(val == null ? '' : val) + '" ' + ((extra && extra.attrs) || '') + '></div>';
     const sel = (n, label, opts, val) => '<div class="fld"><label for="f_' + n + '">' + label + '</label><select id="f_' + n + '" name="' + n + '">' + opts.map((o) => '<option value="' + o[0] + '"' + (String(val || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>';
     return '<form class="card stack" data-form="booking" data-id="' + (b.id || '') + '"><div class="form">' +
       f('client', 'Client name', 'text', b.client, { attrs: 'required' }) + f('email', 'Email', 'email', b.email) + f('phone', 'Phone', 'tel', b.phone) + f('hire_date', 'Date of hire', 'date', b.hire_date) +
       f('address', 'Address', 'text', b.address, { wide: true }) +
       sel('van', 'Van', [['Both', 'Both vans'], ['Hector', 'Hector'], ['Helga', 'Helga'], ['', 'Not set']], b.van) +
-      f('cost', 'Hire price (£)', 'number', b.cost, { attrs: 'min="0" step="1"' }) + f('paid', 'Paid so far (£)', 'number', b.paid, { attrs: 'min="0" step="1"' }) +
+      f('cost', 'Hire price (£)', 'number', b.cost, { attrs: 'min="0" step="1" data-auto="' + autoPrice(b.van) + '"' }) + f('paid', 'Paid so far (£)', 'number', b.paid, { attrs: 'min="0" step="1"' }) +
       sel('status', 'Status', [['quote', 'Quote'], ['booked', 'Booked'], ['complete', 'Complete'], ['refund', 'Refunded']], b.status) +
       '<div class="fld wide"><label for="f_journey">Journeys</label><textarea id="f_journey" name="journey">' + esc(b.journey) + '</textarea></div>' +
       f('miles_per_van', 'Miles per van (road, from base and back)', 'number', b.miles_per_van, { attrs: 'min="0" step="0.1"' }) +
@@ -185,6 +194,10 @@
     if (navigator.share) { try { await navigator.share({ title, text: body }); return; } catch (e) { if (e.name === 'AbortError') return; } }
     if (b.email) { location.href = 'mailto:' + encodeURIComponent(b.email) + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body); return; }
     try { await navigator.clipboard.writeText(url); toast('Link copied. Paste it into a message.'); } catch (e) { prompt('Copy this link', url); }
+  }
+  function draftCard() {
+    const d = getDraft(); if (!draftHasContent(d)) return '';
+    return '<section class="card stack" style="border-color:#E8CF98;background:#FFF8E6"><h2>Draft quote</h2><div class="sub">' + esc(d.client || 'No name yet') + (d.hire_date ? ' · ' + esc(longDate(d.hire_date)) : '') + '</div><div class="row"><a class="btn" href="#/new">Carry on with this quote</a><button class="btn2" type="button" data-act="discarddraft">Discard</button></div></section>';
   }
   function notices() {
     const ev = [];
@@ -235,7 +248,7 @@
     return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('HireHector: ' + b.client + ' (' + vanLabel(b) + ')') + '&dates=' + f(d) + '/' + f(n) + '&details=' + encodeURIComponent((b.journey || '') + (b.phone ? '\n' + b.phone : ''));
   }
 
-  function viewNew() { return '<header><a class="link" href="#/bookings">&lsaquo; Bookings</a><h1>New quote</h1><div class="sub">Fill in the details, save, then make the quote PDF from the booking.</div></header>' + bookingForm(null); }
+  function viewNew() { const d = getDraft(); return '<header><a class="link" href="#/bookings">&lsaquo; Bookings</a><h1>New quote</h1><div class="sub">' + (draftHasContent(d) ? 'Your draft has been restored. ' : '') + 'The price fills in from Settings when you choose the van. Save, then make the quote PDF from the booking.</div></header>' + bookingForm(null, d) + (draftHasContent(d) ? '<div><button class="btn2 danger" type="button" data-act="discarddraft">Discard this draft</button></div>' : ''); }
 
   function viewCalendar() {
     if (!S.cal) { const t = new Date(); S.cal = { y: t.getFullYear(), m: t.getMonth() }; }
@@ -437,9 +450,10 @@
       else if (a === 'doc') await makeDoc(el.dataset.kind, id);
       else if (a === 'ics') ics(S.bookings.find((x) => x.id === id));
       else if (a === 'csv') csv();
+      else if (a === 'discarddraft') { clearDraft(); toast('Draft discarded'); if (route().name === 'new') location.hash = '#/home'; render(); }
       else if (a === 'suggest') {
         const f = el.closest('form'), van = f.van.value, h = num(setting('hector_price', 300)), g = num(setting('helga_price', 300)), disc = num(setting('pair_discount', 0));
-        f.cost.value = van === 'Both' ? Math.max(h + g - disc, 0) : van === 'Hector' ? h : van === 'Helga' ? g : '';
+        f.cost.value = van === 'Both' ? Math.max(h + g - disc, 0) : van === 'Hector' ? h : van === 'Helga' ? g : ''; f.cost.dataset.auto = f.cost.value; f.cost.dispatchEvent(new Event('input', { bubbles: true }));
         toast('Price suggested from Settings. Change it if you have agreed a different one.');
       }
       else if (a === 'setstatus') {
@@ -477,8 +491,18 @@
       }
     });
   });
+  document.addEventListener('input', (e) => {
+    const f = e.target.closest && e.target.closest('form[data-form="booking"]');
+    if (!f || f.dataset.id) return;
+    const o = {}; new FormData(f).forEach((v, k) => { if (typeof v === 'string') o[k] = v; }); setDraft(o);
+  });
   document.addEventListener('change', (e) => {
     const t = e.target;
+    if (t.name === 'van' && t.form && t.form.dataset.form === 'booking' && t.form.cost) {
+      const c = t.form.cost, auto = c.dataset.auto == null ? '' : c.dataset.auto, next = autoPrice(t.value);
+      if (c.value === '' || String(c.value) === String(auto)) { c.value = next; c.dataset.auto = String(next); toast(next === '' ? 'Price cleared' : 'Price set from Settings: ' + money(next)); }
+      c.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     if (t.dataset.change === 'taxyear') { S.taxYear = parseInt(t.value, 10); render.keep = true; render(); }
     if (t.dataset.upload === 'contract' && t.files[0]) run(async () => {
       const b = S.bookings.find((x) => x.id === t.dataset.id), name = slug(b.client) + '_' + compact(b.hire_date) + '.pdf', path = 'contracts/' + b.hire_date.slice(0, 4) + '/' + name;
@@ -505,6 +529,7 @@
         if (res.error) throw res.error;
         if (id) S.bookings = S.bookings.map((x) => (x.id === id ? res.data : x)); else S.bookings.push(res.data);
         S.bookings.sort((a, b) => ((a.hire_date || '') < (b.hire_date || '') ? -1 : 1));
+        if (!id) clearDraft();
         toast('Saved'); location.hash = '#/booking/' + res.data.id; render();
       } else if (kind === 'servicing') {
         const file = fd.get('file'); let path = null;
