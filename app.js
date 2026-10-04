@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
+  const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -94,12 +95,18 @@
   }
 
   /* ---------- views ---------- */
-  function viewLogin(err) {
+  function viewPassword(forced) {
+    return (forced ? '<div class="login"><div><div class="logo" style="font-size:38px">HireHector</div><div class="sub">Choose your password</div></div>' : '<header><h1>Change password</h1></header>') +
+      '<form class="card stack" data-form="setpw"><div class="fld"><label for="np">New password (at least 8 characters)</label><input id="np" name="password" type="password" autocomplete="new-password" minlength="8" required></div>' +
+      '<div class="fld"><label for="np2">Type it again</label><input id="np2" name="password2" type="password" autocomplete="new-password" minlength="8" required></div>' +
+      '<button class="btn" type="submit">Save password</button></form>' + (forced ? '</div>' : '');
+  }
+  function viewLogin(err, info) {
     return '<div class="login"><div><div class="logo" style="font-size:38px">HireHector</div><div class="sub">Sign in to the booking app</div></div>' +
       '<form class="card stack" data-form="login"><div class="fld"><label for="em">Email</label><input id="em" name="email" type="email" autocomplete="username" required></div>' +
       '<div class="fld"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="current-password" required></div>' +
       (err ? '<div class="notice err" role="alert">' + esc(err) + '</div>' : '') +
-      '<button class="btn" type="submit">Sign in</button></form><div class="sub">Access is only for people added by Christine or Nigel.</div></div>';
+      '<button class="btn" type="submit">Sign in</button><button class="btn2" type="button" data-act="forgot">Forgot password? Email me a link</button></form>' + (info ? '<div class="notice" role="status">' + esc(info) + '</div>' : '') + '<div class="sub">Access is only for people added by Christine or Nigel.</div></div>';
   }
 
   function bookingRow(b) {
@@ -270,7 +277,7 @@
     return '<header><div class="sub">Part of every hire agreement</div><h1>Terms &amp; conditions</h1></header><section class="card stack">' + window.HHPDF.TERMS.map((t, i) => '<div><h2>' + (i + 1) + '. ' + esc(t[0]) + '</h2><p style="margin:4px 0 0">' + esc(t[1]) + '</p></div>').join('') + '</section><div class="notice">Draft wording: please check it against your own terms, and have a solicitor look over it before use.</div>';
   }
   function viewMore() {
-    return '<header><h1>More</h1></header><section class="card">' + NAV.filter((n) => !n[3]).map((n) => '<a class="item" href="#/' + n[0] + '">' + n[1] + '</a>').join('') + '<button class="item btn2" style="width:100%;margin-top:8px" data-act="signout">Sign out</button></section>';
+    return '<header><h1>More</h1></header><section class="card">' + NAV.filter((n) => !n[3]).map((n) => '<a class="item" href="#/' + n[0] + '">' + n[1] + '</a>').join('') + '<a class="item" href="#/password">Change password</a><button class="item btn2" style="width:100%;margin-top:8px" data-act="signout">Sign out</button></section>';
   }
   function viewSettings() {
     const f = (k, label, type, extra) => '<div class="fld"><label for="g_' + k + '">' + label + '</label><input id="g_' + k + '" name="' + k + '" type="' + type + '" ' + (extra || '') + ' value="' + esc(k === 'booking_fee_share' ? Math.round(feeShare() * 10000) / 100 : setting(k, '')) + '"></div>';
@@ -287,10 +294,11 @@
   function route() { const h = location.hash.replace(/^#\/?/, '') || 'home'; const p = h.split('/'); return { name: p[0], id: p[1] }; }
   function render() {
     const app = $('#app');
-    if (!S.user) { app.innerHTML = viewLogin(render.err); return; }
+    if (!S.user) { app.innerHTML = viewLogin(render.err, render.info); return; }
+    if (S.setpw) { app.innerHTML = viewPassword(true); return; }
     if (!S.ready) { app.innerHTML = '<div class="login"><div class="logo">HireHector</div><div class="sub">Loading...</div></div>'; return; }
     const r = route();
-    const V = { home: viewHome, bookings: viewBookings, calendar: viewCalendar, accounts: viewAccounts, contracts: viewContracts, servicing: viewServicing, terms: viewTerms, settings: viewSettings, more: viewMore, new: viewNew };
+    const V = { home: viewHome, bookings: viewBookings, calendar: viewCalendar, accounts: viewAccounts, contracts: viewContracts, servicing: viewServicing, terms: viewTerms, settings: viewSettings, more: viewMore, password: () => viewPassword(false), new: viewNew };
     let inner;
     if (r.name === 'booking') inner = viewBooking(r.id); else inner = (V[r.name] || viewHome)();
     const keepY = window.scrollY;
@@ -354,6 +362,12 @@
       else if (a === 'caltoday') { S.cal = null; render.keep = true; render(); }
       else if (a === 'caljump') { const d = pd(el.dataset.d); S.cal = { y: d.getFullYear(), m: d.getMonth() }; render(); window.scrollTo(0, 0); }
       else if (a === 'signout') { await sb.auth.signOut(); }
+      else if (a === 'forgot') {
+        const em = ($('#em') || {}).value; if (!em) { render.err = 'Type your email above first, then press the link button.'; render(); return; }
+        const { error } = await sb.auth.resetPasswordForEmail(em.trim(), { redirectTo: location.origin + location.pathname });
+        if (error) { render.err = error.message; } else { render.err = null; render.info = 'If that email has an account, a link to set a new password is on its way.'; }
+        render();
+      }
       else if (a === 'openfile') await openFile(el.dataset.path);
       else if (a === 'doc') await makeDoc(el.dataset.kind, id);
       else if (a === 'ics') ics(S.bookings.find((x) => x.id === id));
@@ -393,7 +407,11 @@
     e.preventDefault();
     const kind = form.dataset.form, fd = new FormData(form), v = {}; fd.forEach((val, k) => { if (!(val instanceof File)) v[k] = typeof val === 'string' ? val.trim() : val; });
     run(async () => {
-      if (kind === 'login') {
+      if (kind === 'setpw') {
+        if (v.password !== v.password2) { toast('The two passwords do not match'); return; }
+        const { error } = await sb.auth.updateUser({ password: fd.get('password') }); if (error) throw error;
+        S.setpw = false; toast('Password saved'); location.hash = '#/home'; render();
+      } else if (kind === 'login') {
         const { error } = await sb.auth.signInWithPassword({ email: v.email, password: fd.get('password') });
         if (error) { render.err = 'Sign in failed: ' + error.message; render(); }
       } else if (kind === 'booking') {
@@ -431,5 +449,6 @@
     if (S.user) { try { await load(); } catch (e) { console.error(e); render.err = null; toast('Could not load: ' + e.message); } render(); }
   }
   sb.auth.getSession().then((r) => onSession(r.data.session));
-  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') onSession(s); });
+  if (FORCE_PW) S.setpw = true;
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'PASSWORD_RECOVERY') S.setpw = true; if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT' || ev === 'PASSWORD_RECOVERY') onSession(s); });
 })();
