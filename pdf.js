@@ -12,14 +12,13 @@
     ['The vehicles', 'Hector (red and cream) and Helga (blue and white) are vintage vehicles. We will always provide the van or vans named in your agreement. If one is unavailable we will offer a comparable alternative or a refund.'],
     ['Chauffeur-driven', 'Our vans are hired with a driver only. Clients and guests may not drive them.'],
     ['Timings', 'The agreement lists the agreed journeys. Please be ready at the pick-up time, as delays may shorten your hire. Extra time or stops can be added at the agreed rate.'],
-    ['Capacity and safety', 'Seat belts are fitted and must be worn where provided. The number of passengers must not exceed the seats available. Please ask guests to take care when climbing in and out.'],
+    ['Capacity and safety', 'The number of passengers must not exceed the seats available. Please ask guests to take care when climbing in and out of the vans.'],
     ['Decorations', 'Ribbons and flowers may be attached only with our agreement and only using fixings we provide. Confetti and glitter are not allowed in or near the vans. You may play your own music if the driver agrees.'],
     ['Food and drink', 'Drinks are welcome in the vans, but we ask that red wine and sticky foods are kept out. A cleaning fee may apply for anything that needs a deep clean.'],
     ['Cancellation by us', 'If we have to cancel, for example because of mechanical failure, we will tell you as soon as we can, try to supply an alternative and refund anything you have paid if we cannot.'],
     ['Breakdown', 'If a van breaks down on the day we will arrange a replacement where we can. If we cannot complete your hire, we will refund the hire cost for the part not completed.'],
     ['Cancellation by you', 'If you cancel, the booking fee is kept. If you cancel less than 28 days before the date, the full hire cost is payable unless we can re-let the vans.'],
     ['Weather', 'We cannot be held responsible for delays caused by weather or traffic. In the event of extreme conditions we may agree a new date.'],
-    ['Proms and school events', 'If the hire is for a prom or school event, the person booking must confirm they are an adult and that any insurance needed by the school or venue is in place.'],
     ['Liability', 'We hold insurance for the vans and for passengers. You are responsible for any damage caused by you or your guests beyond normal use. Our liability is limited to the hire cost.']
   ];
 
