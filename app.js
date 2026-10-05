@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.4.1';
+  const APP_VERSION = '1.4.2';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -340,13 +340,17 @@
     return '<header><h1>More</h1></header><section class="card">' + NAV.filter((n) => !n[3]).map((n) => '<a class="item" href="#/' + n[0] + '">' + n[1] + '</a>').join('') + '<a class="item" href="#/password">Change password</a><button class="item btn2" style="width:100%;margin-top:8px" data-act="signout">Sign out</button></section>';
   }
   async function checkUpdate() {
-    try { const r = await fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }); S.latest = await r.json(); S.latestErr = null; } catch (e) { S.latestErr = 'Could not check just now. Try again in a moment.'; }
-    render.keep = true; render();
+    S.checkedAt = null;
+    try {
+      const r = await fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }); S.latest = await r.json(); S.latestErr = null; S.checkedAt = new Date();
+      if (S.manualCheck) toast(S.latest.version === APP_VERSION ? 'Checked. You have the latest version (' + APP_VERSION + ').' : 'A new version (' + S.latest.version + ') is ready. Press Update now.');
+    } catch (e) { S.latestErr = 'Could not check just now. Try again in a moment.'; }
+    S.manualCheck = false; render.keep = true; render();
   }
   function versionCard() {
     const L = S.latest, newer = L && L.version && L.version !== APP_VERSION;
     let h = '<section class="card stack"><h2>Version</h2><div class="kv"><span>You are using</span><b>' + esc(APP_VERSION) + '</b></div>';
-    if (L) h += '<div class="kv"><span>Latest available</span><b>' + esc(L.version) + '</b></div>';
+    if (L) h += '<div class="kv"><span>Latest available</span><b>' + esc(L.version) + '</b></div>' + (S.checkedAt ? '<div class="sub">Last checked at ' + String(S.checkedAt.getHours()).padStart(2, '0') + ':' + String(S.checkedAt.getMinutes()).padStart(2, '0') + '</div>' : '');
     if (S.latestErr) h += '<div class="notice err">' + esc(S.latestErr) + '</div>';
     if (newer) h += '<div class="notice">A new version is ready.</div><div class="row"><button class="btn" type="button" data-act="doupdate">Update now</button></div>';
     else if (L) h += '<div class="notice ok">You have the latest version.</div><div class="row"><button class="btn2" type="button" data-act="checkupdate">Check again</button></div>';
@@ -477,7 +481,7 @@
       else if (a === 'previewsigned') { const b = S.bookings.find((x) => x.id === id); window.open(window.HHPDF.contract(b, getSettings(), calc(b)).output('bloburl'), '_blank'); }
       else if (a === 'approvesigned') { if (!confirm('Approve this signed agreement? It will be filed in Contracts and added to the calendar.')) return; await approveSigned(id); }
       else if (a === 'ack') { const now = new Date().toISOString(), { error } = await sb.from('bookings').update({ acknowledged_at: now }).eq('id', id); if (error) throw error; S.bookings.find((x) => x.id === id).acknowledged_at = now; render.keep = true; render(); }
-      else if (a === 'checkupdate') { await checkUpdate(); }
+      else if (a === 'checkupdate') { S.manualCheck = true; el.disabled = true; el.textContent = 'Checking...'; await checkUpdate(); }
       else if (a === 'doupdate') { location.href = location.pathname + '?u=' + Date.now() + location.hash; }
       else if (a === 'delbooking') {
         if (!confirm('Delete this booking? This cannot be undone.')) return;
