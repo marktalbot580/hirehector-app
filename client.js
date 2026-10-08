@@ -38,11 +38,11 @@
   }
   function head() {
     const s = D.s || {};
-    return '<header><div class="logo" style="font-size:34px">' + esc(s.business_name || 'HireHector') + '</div><div class="sub">Vintage VW split screen camper hire</div></header>';
+    return '<header><div class="logo" style="font-size:34px"><img src="logo.svg" alt="" style="width:68px"><span>' + esc(s.business_name || 'HireHector') + '</span></div><div class="sub">Vintage VW split screen camper hire</div></header>';
   }
 
   function view() {
-    if (!D) { app.innerHTML = '<header><div class="logo" style="font-size:34px">HireHector</div></header><section class="card"><h2>Link not found</h2><p>This link is not valid. Please ask us to send it again.</p></section>'; return; }
+    if (!D) { app.innerHTML = '<header><div class="logo" style="font-size:34px"><img src="logo.svg" alt="" style="width:68px"><span>HireHector</span></div></header><section class="card"><h2>Link not found</h2><p>This link is not valid. Please ask us to send it again.</p></section>'; return; }
     const s = D.s || {}, st = D.contract_status;
     const first = esc((D.client || '').split(' ')[0]), quoting = D.status === 'quote' && !D.accepted_at;
     let h = head() + (quoting ? '<h1 style="margin:0">Quote for your wedding on ' + esc(P.longDate(D.hire_date)) + '</h1>' : '<h1 style="margin:0">Hello ' + first + '</h1>');

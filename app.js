@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.4.2';
+  const APP_VERSION = '1.5.0';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -10,8 +10,8 @@
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const DOWFULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const VANS = { Hector: { plate: 'RWA62E', colour: '#7A1F2E', desc: 'Red & cream' }, Helga: { plate: 'LKC350E', colour: '#17607A', desc: 'Blue & white' } };
-  const TONES = { complete: ['#E3F3EA', '#14633C', 'Complete'], booked: ['#E4F0F3', '#0F4659', 'Booked'], quote: ['#FFF0D2', '#7A4F00', 'Quote'], refund: ['#F6E9EB', '#5E1623', 'Refunded'] };
+  const VANS = { Hector: { plate: 'RWA62E', colour: '#9B2C26', desc: 'Red & cream' }, Helga: { plate: 'LKC350E', colour: '#2F5E86', desc: 'Blue & white' } };
+  const TONES = { complete: ['#E3F3EA', '#14633C', 'Complete'], booked: ['#DCE7F1', '#244A6B', 'Booked'], quote: ['#FFF0D2', '#7A4F00', 'Quote'], refund: ['#F6E9EB', '#5E1623', 'Refunded'] };
   const pad = (n) => String(n).padStart(2, '0');
   const isoOf = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   const TODAY = isoOf(new Date());
@@ -92,18 +92,18 @@
   function shell(active, inner) {
     const links = NAV.map((n) => '<a href="#/' + n[0] + '" class="' + (n[3] ? '' : 'desk ') + (active === n[0] || (n[0] === 'bookings' && active === 'booking') ? 'on' : '') + '">' + ic(n[2]) + n[1] + '</a>').join('') +
       '<a href="#/more" class="mob ' + (active === 'more' ? 'on' : '') + '">' + ic('more') + 'More</a>';
-    return '<div class="shell"><header class="top"><div><div class="logo">HireHector</div><small>hirehector.co.uk</small></div></header><nav class="nav" aria-label="Main">' + links + '</nav><main class="main">' + inner + '</main></div>';
+    return '<div class="shell"><header class="top"><div><div class="logo"><img src="logo.svg" alt=""><span>HireHector</span></div><small>hirehector.co.uk</small></div></header><nav class="nav" aria-label="Main">' + links + '</nav><main class="main">' + inner + '</main></div>';
   }
 
   /* ---------- views ---------- */
   function viewPassword(forced) {
-    return (forced ? '<div class="login"><div><div class="logo" style="font-size:38px">HireHector</div><div class="sub">Choose your password</div></div>' : '<header><h1>Change password</h1></header>') +
+    return (forced ? '<div class="login"><div><div class="logo" style="font-size:38px"><img src="logo.svg" alt="" style="width:76px"><span>HireHector</span></div><div class="sub">Choose your password</div></div>' : '<header><h1>Change password</h1></header>') +
       '<form class="card stack" data-form="setpw"><div class="fld"><label for="np">New password (at least 8 characters)</label><input id="np" name="password" type="password" autocomplete="new-password" minlength="8" required></div>' +
       '<div class="fld"><label for="np2">Type it again</label><input id="np2" name="password2" type="password" autocomplete="new-password" minlength="8" required></div>' +
       '<button class="btn" type="submit">Save password</button></form>' + (forced ? '</div>' : '');
   }
   function viewLogin(err, info) {
-    return '<div class="login"><div><div class="logo" style="font-size:38px">HireHector</div><div class="sub">Sign in to the booking app</div></div>' +
+    return '<div class="login"><div><div class="logo" style="font-size:38px"><img src="logo.svg" alt="" style="width:76px"><span>HireHector</span></div><div class="sub">Sign in to the booking app</div></div>' +
       '<form class="card stack" data-form="login"><div class="fld"><label for="em">Email</label><input id="em" name="email" type="email" autocomplete="username" required></div>' +
       '<div class="fld"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="current-password" required></div>' +
       (err ? '<div class="notice err" role="alert">' + esc(err) + '</div>' : '') +
@@ -114,7 +114,7 @@
     const d = b.hire_date ? pd(b.hire_date) : null;
     return '<a class="item" href="#/booking/' + b.id + '"><div class="date"><span>' + (d ? MON[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2) : '') + '</span><b>' + (d ? d.getDate() : '-') + '</b></div>' +
       '<div class="grow"><div style="font-weight:700">' + esc(b.client) + '</div><div class="sub">' + vanDots(b) + ' ' + esc(vanLabel(b)) + (b.journey ? ' · ' + esc(b.journey) : '') + '</div><div class="sub">' + esc(milesLine(b)) + '</div></div>' +
-      '<div style="text-align:right">' + chip(b.status) + (due(b) ? '<div style="font-weight:700;color:#7A1F2E;margin-top:4px">' + money(due(b)) + ' to pay</div>' : '<div class="sub" style="margin-top:4px">' + money(b.paid) + ' of ' + money(b.cost) + '</div>') + '</div></a>';
+      '<div style="text-align:right">' + chip(b.status) + (due(b) ? '<div style="font-weight:700;color:#9B2C26;margin-top:4px">' + money(due(b)) + ' to pay</div>' : '<div class="sub" style="margin-top:4px">' + money(b.paid) + ' of ' + money(b.cost) + '</div>') + '</div></a>';
   }
 
   function viewHome() {
@@ -126,11 +126,11 @@
     return '<header><div class="sub">' + longDate(TODAY) + '</div><h1>Hello</h1></header>' + draftCard() + notices() +
       '<div class="grid"><div class="card tile"><div class="eyebrow">Upcoming</div><div class="n">' + up.length + '</div><div class="sub">' + (up[0] ? esc(up[0].client) + ', ' + shortDate(up[0].hire_date) : 'Nothing booked') + '</div></div>' +
       '<div class="card tile"><div class="eyebrow">Jobs completed</div><div class="n">' + done.length + '</div></div>' +
-      '<div class="card tile"><div class="eyebrow">Balances to collect</div><div class="n" style="color:#7A1F2E">' + money(up.reduce((t, b) => t + due(b), 0)) + '</div></div>' +
+      '<div class="card tile"><div class="eyebrow">Balances to collect</div><div class="n" style="color:#9B2C26">' + money(up.reduce((t, b) => t + due(b), 0)) + '</div></div>' +
       '<div class="card tile"><div class="eyebrow">Taken so far</div><div class="n">' + money(taken) + '</div></div></div>' +
       '<div class="row"><a class="btn" href="#/new">New quote</a><a class="btn2" href="#/calendar">Calendar</a></div>' +
       '<section class="card"><h2>Coming up</h2>' + (up.length ? up.map(bookingRow).join('') : '<p class="sub">No upcoming bookings.</p>') + '</section>' +
-      '<section class="card"><h2>Chase up</h2><div class="sub">Quotes not yet accepted and balances not yet paid.</div>' + (chase.length ? chase.map((b) => '<a class="item" href="#/booking/' + b.id + '"><div class="grow"><b>' + esc(b.client) + '</b><div class="sub">' + shortDate(b.hire_date) + '</div></div>' + chip(b.status) + '<b style="color:#7A1F2E">' + (b.status === 'quote' ? 'Quote ' + money(b.cost) : money(due(b)) + ' due') + '</b></a>').join('') : '<p class="sub">Nothing to chase.</p>') + '</section>' +
+      '<section class="card"><h2>Chase up</h2><div class="sub">Quotes not yet accepted and balances not yet paid.</div>' + (chase.length ? chase.map((b) => '<a class="item" href="#/booking/' + b.id + '"><div class="grow"><b>' + esc(b.client) + '</b><div class="sub">' + shortDate(b.hire_date) + '</div></div>' + chip(b.status) + '<b style="color:#9B2C26">' + (b.status === 'quote' ? 'Quote ' + money(b.cost) : money(due(b)) + ' due') + '</b></a>').join('') : '<p class="sub">Nothing to chase.</p>') + '</section>' +
       '<section class="card"><h2>Recent jobs</h2>' + recent.map(bookingRow).join('') + '</section>';
   }
 
@@ -255,7 +255,7 @@
     let cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((h) => '<div class="h">' + h + '</div>').join('');
     for (let i = 0; i < total; i++) {
       const dn = i - lead + 1, inM = dn >= 1 && dn <= days, iso = inM ? y + '-' + pad(m + 1) + '-' + pad(dn) : '';
-      const evs = inM ? S.bookings.filter((b) => b.hire_date === iso && b.status !== 'quote').map((b) => '<a class="ev" href="#/booking/' + b.id + '" style="background:' + (b.status === 'quote' ? '#FFF0D2' : b.status === 'booked' ? '#E4F0F3' : '#E3F3EA') + '">' + esc(b.client) + '</a>').join('') : '';
+      const evs = inM ? S.bookings.filter((b) => b.hire_date === iso && b.status !== 'quote').map((b) => '<a class="ev" href="#/booking/' + b.id + '" style="background:' + (b.status === 'quote' ? '#FFF0D2' : b.status === 'booked' ? '#DCE7F1' : '#E3F3EA') + '">' + esc(b.client) + '</a>').join('') : '';
       cells += '<div class="' + (inM ? '' : 'o') + '">' + (inM ? (iso === TODAY ? '<span class="t">' + dn + '</span>' : '<b>' + dn + '</b>') : '') + evs + '</div>';
     }
     const up = S.bookings.filter((b) => b.hire_date >= TODAY && b.status === 'booked');
@@ -269,7 +269,7 @@
     if (!S.contractYear || years.indexOf(S.contractYear) < 0) S.contractYear = years.indexOf(String(new Date().getFullYear() + 1)) >= 0 ? String(new Date().getFullYear() + 1) : years[years.length - 1];
     const rows = S.bookings.filter((b) => (b.hire_date || '').slice(0, 4) === S.contractYear);
     return '<header><div class="sub">Filed by the year of the hire</div><h1>Contracts</h1></header>' +
-      '<div class="grid">' + years.map((y) => { const n = S.bookings.filter((b) => (b.hire_date || '').slice(0, 4) === y); const f = n.filter((b) => b.contract_file).length; return '<button class="card" data-act="cyear" data-v="' + y + '" style="text-align:left;cursor:pointer;' + (y === S.contractYear ? 'border:2px solid #362F2D;background:#F4ECE0' : '') + '"><div style="font-size:22px;font-weight:700">' + y + '</div><div class="sub">' + n.length + ' bookings · ' + f + ' on file</div></button>'; }).join('') + '</div>' +
+      '<div class="grid">' + years.map((y) => { const n = S.bookings.filter((b) => (b.hire_date || '').slice(0, 4) === y); const f = n.filter((b) => b.contract_file).length; return '<button class="card" data-act="cyear" data-v="' + y + '" style="text-align:left;cursor:pointer;' + (y === S.contractYear ? 'border:2px solid #2B2620;background:#EBE2D0' : '') + '"><div style="font-size:22px;font-weight:700">' + y + '</div><div class="sub">' + n.length + ' bookings · ' + f + ' on file</div></button>'; }).join('') + '</div>' +
       '<section class="card"><h2>' + S.contractYear + ' folder</h2><div class="sub">Files are named Name_Surname_DDMMYYYY.pdf</div>' + rows.map((b) => '<div class="item"><div class="grow"><b>' + esc(b.client) + '</b><div class="sub">' + shortDate(b.hire_date) + ' · ' + esc(vanLabel(b)) + '</div></div>' + chip(b.status) +
         (b.contract_file ? '<span style="overflow-wrap:anywhere">' + esc(b.contract_file.split('/').pop()) + '</span><button class="btn2" data-act="openfile" data-path="' + esc(b.contract_file) + '">Open</button>' : '<span class="sub">' + (b.status === 'quote' ? 'Quote only' : 'No contract on file') + '</span><a class="btn2" href="#/booking/' + b.id + '">Make contract</a><label class="btn2" style="cursor:pointer">Upload PDF<input type="file" accept="application/pdf" data-upload="contract" data-id="' + b.id + '" style="position:absolute;width:1px;height:1px;opacity:0"></label>') + '</div>').join('') + '</section>';
   }
@@ -278,7 +278,7 @@
     const sum = ['Hector', 'Helga'].map((v) => {
       const l = S.servicing.filter((s) => s.van === v).sort((a, b) => (a.service_date < b.service_date ? 1 : -1));
       const nx = l.map((s) => s.next_due).filter(Boolean).sort();
-      return '<div class="card"><div class="row"><span class="dot" style="background:' + VANS[v].colour + ';width:14px;height:14px"></span><b style="font-size:18px">' + v + '</b><span class="sub">' + VANS[v].plate + '</span></div><div class="sub">Last service: <b style="color:#362F2D">' + (l[0] ? shortDate(l[0].service_date) : 'none recorded') + '</b></div><div class="sub">Total spent: <b style="color:#362F2D">' + money(l.reduce((t, s) => t + num(s.amount), 0)) + '</b></div><div class="sub">Next due: <b style="color:#362F2D">' + (nx.length ? shortDate(nx[nx.length - 1]) : 'not set') + '</b></div></div>';
+      return '<div class="card"><div class="row"><span class="dot" style="background:' + VANS[v].colour + ';width:14px;height:14px"></span><b style="font-size:18px">' + v + '</b><span class="sub">' + VANS[v].plate + '</span></div><div class="sub">Last service: <b style="color:#2B2620">' + (l[0] ? shortDate(l[0].service_date) : 'none recorded') + '</b></div><div class="sub">Total spent: <b style="color:#2B2620">' + money(l.reduce((t, s) => t + num(s.amount), 0)) + '</b></div><div class="sub">Next due: <b style="color:#2B2620">' + (nx.length ? shortDate(nx[nx.length - 1]) : 'not set') + '</b></div></div>';
     }).join('');
     const items = S.servicing.slice().sort((a, b) => (a.service_date < b.service_date ? 1 : -1));
     return '<header><div class="sub">Keep the vans wedding ready</div><h1>Servicing</h1></header><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">' + sum + '</div>' +
