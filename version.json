@@ -3,6 +3,14 @@
  "history": [
   {
    "version": "1.5.0",
+   "date": "22 Oct 2026",
+   "notes": [
+    "All date boxes use UK format (DD/MM/YYYY) with a calendar button",
+    "The accountant spreadsheet shows dates as DD/MM/YYYY"
+   ]
+  },
+  {
+   "version": "1.5.0",
    "date": "8 Oct 2026",
    "notes": [
     "New logo and the same look as the hirehector.co.uk website: colours, fonts, rounded buttons",

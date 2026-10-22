@@ -72,3 +72,5 @@ textarea{min-height:84px;resize:vertical}
   .main{margin-left:240px;max-width:none;padding:32px 40px 56px;width:calc(100% - 240px)}
   .toast{bottom:24px}
 }
+
+.datewrap{position:relative}.datewrap>input[type=text]{padding-right:48px}.datewrap .datepick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}.datewrap .calbtn{position:absolute;right:2px;top:0;bottom:0;width:44px;border:0;background:transparent;color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}

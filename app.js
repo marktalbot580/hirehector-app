@@ -173,6 +173,26 @@
   }
 
   function clientUrl(b) { return location.origin + location.pathname.replace(/[^/]*$/, '') + 'client.html?t=' + b.quote_token; }
+  /* UK dates (DD/MM/YYYY): date boxes are shown as text so every phone shows the same format */
+  function isoToUk(v) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : (v || ''); }
+  function ukToIso(v) {
+    const m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/.exec(String(v || '').trim()); if (!m) return null;
+    const d = +m[1], mo = +m[2], y = +m[3], t = new Date(y, mo - 1, d);
+    if (t.getFullYear() !== y || t.getMonth() !== mo - 1 || t.getDate() !== d) return null;
+    return y + '-' + pad(mo) + '-' + pad(d);
+  }
+  function ukify(root) {
+    root.querySelectorAll('input[type="date"]').forEach((el) => {
+      const iso = el.value, wrap = document.createElement('div'); wrap.className = 'datewrap';
+      const t = document.createElement('input'); t.type = 'text'; t.id = el.id; t.name = el.name; t.required = el.required; t.className = el.className;
+      t.setAttribute('inputmode', 'numeric'); t.setAttribute('placeholder', 'DD/MM/YYYY'); t.setAttribute('maxlength', '10'); t.setAttribute('autocomplete', 'off'); t.dataset.uk = '1'; t.value = isoToUk(iso);
+      const pick = document.createElement('input'); pick.type = 'date'; pick.value = /^\d{4}-/.test(iso) ? iso : ''; pick.tabIndex = -1; pick.setAttribute('aria-hidden', 'true'); pick.className = 'datepick';
+      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'calbtn'; btn.setAttribute('aria-label', 'Choose from calendar'); btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+      btn.onclick = () => { try { pick.showPicker(); } catch (e) { pick.focus(); pick.click(); } };
+      pick.onchange = () => { t.value = isoToUk(pick.value); t.dispatchEvent(new Event('input', { bubbles: true })); };
+      wrap.appendChild(t); wrap.appendChild(pick); wrap.appendChild(btn); el.replaceWith(wrap);
+    });
+  }
   function stamp(iso) { return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
   function workflowCard(b) {
     const cs = b.contract_status || (b.status === 'booked' ? 'review' : null);
@@ -382,7 +402,7 @@
     let inner;
     if (r.name === 'booking') inner = viewBooking(r.id); else inner = (V[r.name] || viewHome)();
     const keepY = window.scrollY;
-    app.innerHTML = shell(r.name, inner);
+    app.innerHTML = shell(r.name, inner); ukify(app);
     if (render.keep) { window.scrollTo(0, keepY); render.keep = false; }
   }
   window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
@@ -420,7 +440,7 @@
       .concat(expenseLines(y).map((e) => ({ date: e.date, type: 'Expense', category: e.category, desc: [e.supplier, e.van, e.note].filter(Boolean).join(' - '), amount: -e.amount, file: e.file }))).sort((a, b) => (a.date < b.date ? -1 : 1));
     const inc = rows.filter((r) => r.amount > 0).reduce((t, r) => t + r.amount, 0), exp = -rows.filter((r) => r.amount < 0).reduce((t, r) => t + r.amount, 0);
     const lines = [['Date', 'Type', 'Category', 'Description', 'Amount (GBP)', 'File'].map(q).join(',')];
-    rows.forEach((r) => lines.push([r.date, r.type, r.category, r.desc, r.amount.toFixed(2), r.file].map(q).join(',')));
+    rows.forEach((r) => lines.push([isoToUk(r.date), r.type, r.category, r.desc, r.amount.toFixed(2), r.file].map(q).join(',')));
     lines.push(['', '', '', 'Total income', inc.toFixed(2), ''].map(q).join(',')); lines.push(['', '', '', 'Total expenses', (-exp).toFixed(2), ''].map(q).join(',')); lines.push(['', '', '', 'Profit before tax', (inc - exp).toFixed(2), ''].map(q).join(','));
     download('HireHector_accounts_' + y + '-' + String(y + 1).slice(2) + '.csv', '﻿' + lines.join('\r\n'), 'text/csv');
     toast('Spreadsheet downloaded. It opens in Excel, Numbers or Google Sheets.');
@@ -496,9 +516,13 @@
     });
   });
   document.addEventListener('input', (e) => {
+    const u = e.target;
+    if (u && u.dataset && u.dataset.uk && e.inputType !== 'deleteContentBackward') {
+      const d = u.value.replace(/[^0-9]/g, '').slice(0, 8); u.value = d.length > 4 ? d.slice(0, 2) + '/' + d.slice(2, 4) + '/' + d.slice(4) : d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+    }
     const f = e.target.closest && e.target.closest('form[data-form="booking"]');
     if (!f || f.dataset.id) return;
-    const o = {}; new FormData(f).forEach((v, k) => { if (typeof v === 'string') o[k] = v; }); setDraft(o);
+    const o = {}; new FormData(f).forEach((v, k) => { if (typeof v === 'string') { const el = f.elements[k]; o[k] = el && el.dataset && el.dataset.uk ? (ukToIso(v) || '') : v; } }); setDraft(o);
   });
   document.addEventListener('change', (e) => {
     const t = e.target;
@@ -517,7 +541,10 @@
   document.addEventListener('submit', (e) => {
     const form = e.target.closest('form[data-form]'); if (!form) return;
     e.preventDefault();
-    const kind = form.dataset.form, fd = new FormData(form), v = {}; fd.forEach((val, k) => { if (!(val instanceof File)) v[k] = typeof val === 'string' ? val.trim() : val; });
+    const fd = new FormData(form); let badDate = false;
+    form.querySelectorAll('input[data-uk]').forEach((i) => { if (!i.value.trim()) { fd.set(i.name, ''); return; } const iso = ukToIso(i.value); if (!iso) badDate = true; else fd.set(i.name, iso); });
+    if (badDate) { toast('Please type dates as DD/MM/YYYY, for example 05/06/2027'); return; }
+    const kind = form.dataset.form, v = {}; fd.forEach((val, k) => { if (!(val instanceof File)) v[k] = typeof val === 'string' ? val.trim() : val; });
     run(async () => {
       if (kind === 'setpw') {
         if (v.password !== v.password2) { toast('The two passwords do not match'); return; }
