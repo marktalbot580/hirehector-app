@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.5.1';
+  const APP_VERSION = '1.5.2';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -256,7 +256,7 @@
       '<section class="card stack"><h2>Next steps</h2><div class="row">' +
       (b.status === 'quote' ? '<button class="btn2" data-act="setstatus" data-s="booked" data-id="' + b.id + '">Client accepted: mark as booked</button>' : '') +
       (b.status === 'booked' ? '<button class="btn2" data-act="setstatus" data-s="complete" data-id="' + b.id + '">Mark as complete</button>' : '') +
-      (b.hire_date ? '<a class="btn2" target="_blank" rel="noopener" href="' + gcalLink(b) + '">Add to Google Calendar</a><button class="btn2" data-act="ics" data-id="' + b.id + '">Download .ics</button>' : '') + '</div></section>' +
+      (b.hire_date ? '<a class="btn2" target="_blank" rel="noopener" href="' + gcalLink(b) + '">Add to Google Calendar</a>' : '') + '</div></section>' +
       '<h2>Edit booking</h2>' + bookingForm(b);
   }
 
@@ -445,10 +445,6 @@
     download('HireHector_accounts_' + y + '-' + String(y + 1).slice(2) + '.csv', '﻿' + lines.join('\r\n'), 'text/csv');
     toast('Spreadsheet downloaded. It opens in Excel, Numbers or Google Sheets.');
   }
-  function ics(b) {
-    const d = pd(b.hire_date), n = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1), f = (x) => x.getFullYear() + pad(x.getMonth() + 1) + pad(x.getDate());
-    download(slug(b.client) + '_' + compact(b.hire_date) + '.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//HireHector//EN', 'BEGIN:VEVENT', 'UID:' + b.id + '@hirehector', 'DTSTAMP:' + f(new Date()) + 'T000000Z', 'DTSTART;VALUE=DATE:' + f(d), 'DTEND;VALUE=DATE:' + f(n), 'SUMMARY:HireHector: ' + b.client + ' (' + vanLabel(b) + ')', 'DESCRIPTION:' + (b.journey || '').replace(/\n/g, ' '), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n'), 'text/calendar');
-  }
 
   /* ---------- events ---------- */
   document.addEventListener('click', (e) => {
@@ -470,7 +466,6 @@
       }
       else if (a === 'openfile') await openFile(el.dataset.path);
       else if (a === 'doc') await makeDoc(el.dataset.kind, id);
-      else if (a === 'ics') ics(S.bookings.find((x) => x.id === id));
       else if (a === 'csv') csv();
       else if (a === 'discarddraft') { clearDraft(); toast('Draft discarded'); if (route().name === 'new') location.hash = '#/home'; render(); }
       else if (a === 'suggest') {
