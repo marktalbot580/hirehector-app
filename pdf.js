@@ -128,7 +128,7 @@
       doc.text(S2.business_name || 'HireHector', tx, w.y + 7);
       w.font({ font: 'times', style: 'italic', size: 10.5, color: MUTED });
       doc.text('Vintage VW split screen camper hire', tx, w.y + 13);
-      const contact = [S2.address, S2.phone, S2.email].filter(Boolean);
+      const contact = [S2.phone, S2.email].filter(Boolean);
       w.font({ size: 8.5, color: MUTED });
       let cy = w.y + 3;
       contact.forEach(function (ln) { String(ln).split('\n').forEach(function (p) { doc.text(p, R, cy, { align: 'right' }); cy += 4; }); });
@@ -146,10 +146,12 @@
       const n = doc.getNumberOfPages(), S2 = w.S;
       for (let i = 1; i <= n; i++) {
         doc.setPage(i);
-        doc.setDrawColor.apply(doc, RULE); doc.setLineWidth(0.2); doc.line(L, 283, R, 283);
+        doc.setDrawColor.apply(doc, RULE); doc.setLineWidth(0.2); doc.line(L, 281, R, 281);
         w.font({ size: 8, color: MUTED });
-        doc.text((S2.business_name || 'HireHector') + '  ·  ' + (S2.website || 'hirehector.co.uk'), L, 288);
-        doc.text('Page ' + i + ' of ' + n, R, 288, { align: 'right' });
+        if (S2.address) { const a = String(S2.address).replace(/\s*\n\s*/g, ', '); w.font({ size: 7.5, color: MUTED }); doc.text(a, L, 285.5, { maxWidth: R - L }); }
+        w.font({ size: 8, color: MUTED });
+        doc.text((S2.business_name || 'HireHector') + '  ·  ' + (S2.website || 'hirehector.co.uk'), L, 290);
+        doc.text('Page ' + i + ' of ' + n, R, 290, { align: 'right' });
       }
       return doc;
     };
