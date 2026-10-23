@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.5.2';
+  const APP_VERSION = '1.5.3';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -271,7 +271,7 @@
   function viewCalendar() {
     if (!S.cal) { const t = new Date(); S.cal = { y: t.getFullYear(), m: t.getMonth() }; }
     const { y, m } = S.cal;
-    const lead = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate(), total = Math.ceil((lead + days) / 7) * 7;
+    const lead = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate(), total = 42; /* always six weeks so the page never changes height */
     let cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((h) => '<div class="h">' + h + '</div>').join('');
     for (let i = 0; i < total; i++) {
       const dn = i - lead + 1, inM = dn >= 1 && dn <= days, iso = inM ? y + '-' + pad(m + 1) + '-' + pad(dn) : '';
@@ -280,7 +280,7 @@
     }
     const up = S.bookings.filter((b) => b.hire_date >= TODAY && b.status === 'booked');
     return '<header class="row sp"><div><div class="sub">Every booking, month by month</div><h1>Calendar</h1></div></header>' +
-      '<section class="card stack"><div class="row sp"><h2>' + MONTHS[m] + ' ' + y + '</h2><div class="row"><button class="btn2" data-act="calprev" aria-label="Previous month">&lt;</button><button class="btn2" data-act="caltoday">Today</button><button class="btn2" data-act="calnext" aria-label="Next month">&gt;</button></div></div><div class="scroll"><div class="cal">' + cells + '</div></div></section>' +
+      '<section class="card stack"><div class="calnav"><button class="btn2" data-act="calprev" aria-label="Previous month">&lt;</button><h2>' + MONTHS[m] + ' ' + y + '</h2><button class="btn2" data-act="caltoday">Today</button><button class="btn2" data-act="calnext" aria-label="Next month">&gt;</button></div><div class="scroll"><div class="cal">' + cells + '</div></div></section>' +
       '<section class="card"><h2>Coming up</h2>' + (up.length ? up.map((b) => '<a class="item" href="#/booking/' + b.id + '"><div class="grow"><b>' + esc(b.client) + '</b><div class="sub">' + esc(longDate(b.hire_date)) + ' · ' + esc(vanLabel(b)) + '</div></div><button class="btn2" data-act="caljump" data-d="' + b.hire_date + '">Show</button></a>').join('') : '<p class="sub">Nothing booked.</p>') + '</section>';
   }
 
