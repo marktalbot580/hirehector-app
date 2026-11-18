@@ -1,6 +1,13 @@
 {
- "version": "1.5.4",
+ "version": "1.5.5",
  "history": [
+  {
+   "version": "1.5.5",
+   "date": "18 Nov 2026",
+   "notes": [
+    "New Email in Gmail with button: opens Gmail with the client and subject filled in; paste the message and the link shows as a button"
+   ]
+  },
   {
    "version": "1.5.4",
    "date": "18 Nov 2026",

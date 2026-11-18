@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.5.4';
+  const APP_VERSION = '1.5.5';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -198,12 +198,12 @@
     const cs = b.contract_status || (b.status === 'booked' ? 'review' : null);
     let h = '<section class="card stack"><h2>Client link and agreement</h2>';
     if (b.status === 'quote' && !b.accepted_at) {
-      h += '<div class="sub">The client opens a private page, reads the quote and presses Accept. You will see it here and on the home page.</div><div class="row"><button class="btn" data-act="sendlink" data-kind="quote" data-id="' + b.id + '">Send quote with Accept button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button>' + (b.email ? '<button class="btn2" data-act="copyemail" data-id="' + b.id + '">Copy client email</button>' : '') + '</div>';
+      h += '<div class="sub">The client opens a private page, reads the quote and presses Accept. You will see it here and on the home page.</div><div class="row"><button class="btn" data-act="sendlink" data-kind="quote" data-id="' + b.id + '">Send quote with Accept button</button><button class="btn" data-act="gmailbtn" data-kind="quote" data-id="' + b.id + '">Email in Gmail with button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button>' + (b.email ? '<button class="btn2" data-act="copyemail" data-id="' + b.id + '">Copy client email</button>' : '') + '</div>';
     } else if (cs === 'review') {
       h += '<div class="notice ok">' + (b.accepted_at ? 'Accepted by the client on ' + esc(stamp(b.accepted_at)) + '.' : 'Booked.') + ' Review the agreement, then approve it to send the signing link.</div>' +
         '<div class="row"><button class="btn2" data-act="preview" data-id="' + b.id + '">Review agreement</button><button class="btn" data-act="approve" data-id="' + b.id + '">Approve and send signing link</button></div>';
     } else if (cs === 'approved') {
-      h += '<div class="sub">Approved' + (b.approved_at ? ' on ' + esc(stamp(b.approved_at)) : '') + '. Waiting for the client to sign.</div><div class="row"><button class="btn2" data-act="sendlink" data-kind="contract" data-id="' + b.id + '">Send the link again</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button></div>';
+      h += '<div class="sub">Approved' + (b.approved_at ? ' on ' + esc(stamp(b.approved_at)) : '') + '. Waiting for the client to sign.</div><div class="row"><button class="btn2" data-act="sendlink" data-kind="contract" data-id="' + b.id + '">Send the link again</button><button class="btn2" data-act="gmailbtn" data-kind="contract" data-id="' + b.id + '">Email in Gmail with button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button></div>';
     } else if (cs === 'signed') {
       h += '<div class="notice">Signed by ' + esc(b.signed_name) + ' on ' + esc(stamp(b.signed_at)) + '. Please check the signed agreement. It is not in Contracts or the calendar until you approve it.</div>' +
         '<div class="row"><button class="btn2" data-act="previewsigned" data-id="' + b.id + '">Review signed agreement</button><button class="btn" data-act="approvesigned" data-id="' + b.id + '">Approve and confirm booking</button></div>';
@@ -214,6 +214,16 @@
   }
   /* Gmail's share sheet cannot fill in the To box, so the client email goes on the clipboard first. */
   function copyEmail(b) { if (!b || !b.email) return Promise.resolve(false); try { return navigator.clipboard.writeText(b.email).then(() => true, () => false); } catch (e) { return Promise.resolve(false); } }
+  /* Plain-text share sheets and mailto links cannot hold a button, so copy a formatted message (with a button) and open Gmail with To and Subject filled in. */
+  async function gmailButton(b, text, title, label) {
+    const url = clientUrl(b), owner = esc(S.settings.owner || ''), biz = esc(S.settings.business_name || 'HireHector');
+    const html = '<div><p>Hello ' + esc(b.client.split(' ')[0]) + ',</p><p>' + esc(text.replace(/:\s*$/, '.')) + '</p><p><a href="' + url + '" style="background:#7A1F2E;color:#ffffff;padding:12px 24px;border-radius:24px;text-decoration:none;display:inline-block;font-weight:bold">' + esc(label) + '</a></p><p>' + owner + '<br>' + biz + '</p></div>';
+    const plain = 'Hello ' + b.client.split(' ')[0] + ',\n\n' + text + '\n' + url + '\n\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
+    try { await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([plain], { type: 'text/plain' }) })]); }
+    catch (e) { try { await navigator.clipboard.writeText(plain); } catch (e2) { prompt('Copy this message', plain); } }
+    toast('Message copied. Paste it into the email.');
+    window.open('https://mail.google.com/mail/?view=cm&fs=1' + (b.email ? '&to=' + encodeURIComponent(b.email) : '') + '&su=' + encodeURIComponent(title), '_blank');
+  }
   async function shareLink(b, text, title) {
     const copied = copyEmail(b); /* started straight away, while the tap still counts */
     const url = clientUrl(b), body = 'Hello ' + b.client.split(' ')[0] + ',\n\n' + text + '\n' + url + '\n\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
@@ -486,6 +496,11 @@
         const b = S.bookings.find((x) => x.id === id);
         if (el.dataset.kind === 'quote') await shareLink(b, 'Here is your quote for your wedding on ' + longDate(b.hire_date) + '. You can read it and press Accept here:', 'Quote for your wedding on ' + longDate(b.hire_date));
         else await shareLink(b, 'Your hire agreement is ready to read and sign here:', 'Your HireHector hire agreement');
+      }
+      else if (a === 'gmailbtn') {
+        const b = S.bookings.find((x) => x.id === id);
+        if (el.dataset.kind === 'quote') await gmailButton(b, 'Here is your quote for your wedding on ' + longDate(b.hire_date) + '. You can read it and accept it using the button below.', 'Quote for your wedding on ' + longDate(b.hire_date), 'View and accept your quote');
+        else await gmailButton(b, 'Your hire agreement is ready to read and sign using the button below.', 'Your HireHector hire agreement', 'Read and sign your agreement');
       }
       else if (a === 'copyemail') { const b = S.bookings.find((x) => x.id === id); try { await navigator.clipboard.writeText(b.email); toast('Client email copied'); } catch (e) { prompt('Copy this email', b.email); } }
       else if (a === 'copylink') { const b = S.bookings.find((x) => x.id === id); try { await navigator.clipboard.writeText(clientUrl(b)); toast('Link copied'); } catch (e) { prompt('Copy this link', clientUrl(b)); } }
