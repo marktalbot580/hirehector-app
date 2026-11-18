@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.5.5';
+  const APP_VERSION = '1.5.6';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -215,9 +215,9 @@
   /* Gmail's share sheet cannot fill in the To box, so the client email goes on the clipboard first. */
   function copyEmail(b) { if (!b || !b.email) return Promise.resolve(false); try { return navigator.clipboard.writeText(b.email).then(() => true, () => false); } catch (e) { return Promise.resolve(false); } }
   /* Plain-text share sheets and mailto links cannot hold a button, so copy a formatted message (with a button) and open Gmail with To and Subject filled in. */
-  async function gmailButton(b, text, title, label) {
+  async function gmailButton(b, text, title, label, kind) {
     const url = clientUrl(b), owner = esc(S.settings.owner || ''), biz = esc(S.settings.business_name || 'HireHector');
-    const html = '<div><p>Hello ' + esc(b.client.split(' ')[0]) + ',</p><p>' + esc(text.replace(/:\s*$/, '.')) + '</p><p><a href="' + url + '" style="background:#7A1F2E;color:#ffffff;padding:12px 24px;border-radius:24px;text-decoration:none;display:inline-block;font-weight:bold">' + esc(label) + '</a></p><p>' + owner + '<br>' + biz + '</p></div>';
+    const html = '<div><p>Hello ' + esc(b.client.split(' ')[0]) + ',</p><p>' + esc(text.replace(/:\s*$/, '.')) + '</p><p><a href="' + url + '"><img src="' + location.origin + location.pathname.replace(/[^/]*$/, '') + (kind === 'contract' ? 'btn-contract.png' : 'btn-quote.png') + '" alt="' + esc(label) + '" width="300" style="width:300px;max-width:100%;height:auto;border:0"></a></p><p>' + owner + '<br>' + biz + '</p></div>';
     const plain = 'Hello ' + b.client.split(' ')[0] + ',\n\n' + text + '\n' + url + '\n\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
     try { await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([plain], { type: 'text/plain' }) })]); }
     catch (e) { try { await navigator.clipboard.writeText(plain); } catch (e2) { prompt('Copy this message', plain); } }
@@ -499,8 +499,8 @@
       }
       else if (a === 'gmailbtn') {
         const b = S.bookings.find((x) => x.id === id);
-        if (el.dataset.kind === 'quote') await gmailButton(b, 'Here is your quote for your wedding on ' + longDate(b.hire_date) + '. You can read it and accept it using the button below.', 'Quote for your wedding on ' + longDate(b.hire_date), 'View and accept your quote');
-        else await gmailButton(b, 'Your hire agreement is ready to read and sign using the button below.', 'Your HireHector hire agreement', 'Read and sign your agreement');
+        if (el.dataset.kind === 'quote') await gmailButton(b, 'Here is your quote for your wedding on ' + longDate(b.hire_date) + '. You can read it and accept it using the button below.', 'Quote for your wedding on ' + longDate(b.hire_date), 'View and accept your quote', 'quote');
+        else await gmailButton(b, 'Your hire agreement is ready to read and sign using the button below.', 'Your HireHector hire agreement', 'Read and sign your agreement', 'contract');
       }
       else if (a === 'copyemail') { const b = S.bookings.find((x) => x.id === id); try { await navigator.clipboard.writeText(b.email); toast('Client email copied'); } catch (e) { prompt('Copy this email', b.email); } }
       else if (a === 'copylink') { const b = S.bookings.find((x) => x.id === id); try { await navigator.clipboard.writeText(clientUrl(b)); toast('Link copied'); } catch (e) { prompt('Copy this link', clientUrl(b)); } }

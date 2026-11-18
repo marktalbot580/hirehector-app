@@ -1,6 +1,13 @@
 {
- "version": "1.5.5",
+ "version": "1.5.6",
  "history": [
+  {
+   "version": "1.5.6",
+   "date": "18 Nov 2026",
+   "notes": [
+    "Gmail email now uses a button picture with the link inside, so the web address is not shown"
+   ]
+  },
   {
    "version": "1.5.5",
    "date": "18 Nov 2026",
