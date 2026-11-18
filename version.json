@@ -1,6 +1,14 @@
 {
- "version": "1.5.3",
+ "version": "1.5.4",
  "history": [
+  {
+   "version": "1.5.4",
+   "date": "18 Nov 2026",
+   "notes": [
+    "Sending a quote or link copies the client's email first, so you can paste it into the To box in Gmail",
+    "New Copy client email button"
+   ]
+  },
   {
    "version": "1.5.3",
    "date": "23 Oct 2026",

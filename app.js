@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.5.3';
+  const APP_VERSION = '1.5.4';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -198,7 +198,7 @@
     const cs = b.contract_status || (b.status === 'booked' ? 'review' : null);
     let h = '<section class="card stack"><h2>Client link and agreement</h2>';
     if (b.status === 'quote' && !b.accepted_at) {
-      h += '<div class="sub">The client opens a private page, reads the quote and presses Accept. You will see it here and on the home page.</div><div class="row"><button class="btn" data-act="sendlink" data-kind="quote" data-id="' + b.id + '">Send quote with Accept button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button></div>';
+      h += '<div class="sub">The client opens a private page, reads the quote and presses Accept. You will see it here and on the home page.</div><div class="row"><button class="btn" data-act="sendlink" data-kind="quote" data-id="' + b.id + '">Send quote with Accept button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button>' + (b.email ? '<button class="btn2" data-act="copyemail" data-id="' + b.id + '">Copy client email</button>' : '') + '</div>';
     } else if (cs === 'review') {
       h += '<div class="notice ok">' + (b.accepted_at ? 'Accepted by the client on ' + esc(stamp(b.accepted_at)) + '.' : 'Booked.') + ' Review the agreement, then approve it to send the signing link.</div>' +
         '<div class="row"><button class="btn2" data-act="preview" data-id="' + b.id + '">Review agreement</button><button class="btn" data-act="approve" data-id="' + b.id + '">Approve and send signing link</button></div>';
@@ -212,9 +212,12 @@
     } else { h += '<div class="sub">Nothing waiting for this booking.</div>'; }
     return h + '</section>';
   }
+  /* Gmail's share sheet cannot fill in the To box, so the client email goes on the clipboard first. */
+  function copyEmail(b) { if (!b || !b.email) return Promise.resolve(false); try { return navigator.clipboard.writeText(b.email).then(() => true, () => false); } catch (e) { return Promise.resolve(false); } }
   async function shareLink(b, text, title) {
+    const copied = copyEmail(b); /* started straight away, while the tap still counts */
     const url = clientUrl(b), body = 'Hello ' + b.client.split(' ')[0] + ',\n\n' + text + '\n' + url + '\n\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
-    if (navigator.share) { try { await navigator.share({ title, text: body }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+    if (navigator.share) { if (await copied) toast('Client email copied. Paste it into the To box.'); try { await navigator.share({ title, text: body }); return; } catch (e) { if (e.name === 'AbortError') return; } }
     if (b.email) { location.href = 'mailto:' + encodeURIComponent(b.email) + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body); return; }
     try { await navigator.clipboard.writeText(url); toast('Link copied. Paste it into a message.'); } catch (e) { prompt('Copy this link', url); }
   }
@@ -409,10 +412,12 @@
 
   /* ---------- documents ---------- */
   async function deliver(doc, filename, b, subject) {
+    const copied = copyEmail(b);
     const blob = doc.output('blob');
     const file = new File([blob], filename, { type: 'application/pdf' });
     const body = 'Hello ' + b.client.split(' ')[0] + ',\n\nPlease find attached: ' + subject + '.\n' + (b.quote_token && /quote/.test(subject) ? '\nYou can accept your quote online here:\n' + clientUrl(b) + '\n' : '') + '\n' + (S.settings.owner || '') + '\n' + (S.settings.business_name || 'HireHector');
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      if (await copied) toast('Client email copied. Paste it into the To box.');
       try { await navigator.share({ files: [file], title: subject, text: body }); return; } catch (e) { if (e.name === 'AbortError') return; }
     }
     doc.save(filename);
@@ -482,6 +487,7 @@
         if (el.dataset.kind === 'quote') await shareLink(b, 'Here is your quote for your wedding on ' + longDate(b.hire_date) + '. You can read it and press Accept here:', 'Quote for your wedding on ' + longDate(b.hire_date));
         else await shareLink(b, 'Your hire agreement is ready to read and sign here:', 'Your HireHector hire agreement');
       }
+      else if (a === 'copyemail') { const b = S.bookings.find((x) => x.id === id); try { await navigator.clipboard.writeText(b.email); toast('Client email copied'); } catch (e) { prompt('Copy this email', b.email); } }
       else if (a === 'copylink') { const b = S.bookings.find((x) => x.id === id); try { await navigator.clipboard.writeText(clientUrl(b)); toast('Link copied'); } catch (e) { prompt('Copy this link', clientUrl(b)); } }
       else if (a === 'preview') {
         const b = S.bookings.find((x) => x.id === id); if (!b.hire_date) { toast('Add the date of hire first.'); return; }
