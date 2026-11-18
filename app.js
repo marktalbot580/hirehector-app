@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const CFG = window.HH_CONFIG;
-  const APP_VERSION = '1.5.6';
+  const APP_VERSION = '1.5.7';
   const FORCE_PW = /type=(invite|recovery)/.test(location.hash);
   const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   const $ = (s, r) => (r || document).querySelector(s);
@@ -198,12 +198,12 @@
     const cs = b.contract_status || (b.status === 'booked' ? 'review' : null);
     let h = '<section class="card stack"><h2>Client link and agreement</h2>';
     if (b.status === 'quote' && !b.accepted_at) {
-      h += '<div class="sub">The client opens a private page, reads the quote and presses Accept. You will see it here and on the home page.</div><div class="row"><button class="btn" data-act="sendlink" data-kind="quote" data-id="' + b.id + '">Send quote with Accept button</button><button class="btn" data-act="gmailbtn" data-kind="quote" data-id="' + b.id + '">Email in Gmail with button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button>' + (b.email ? '<button class="btn2" data-act="copyemail" data-id="' + b.id + '">Copy client email</button>' : '') + '</div>';
+      h += '<div class="sub">The client opens a private page, reads the quote and presses Accept. You will see it here and on the home page.</div><div class="row"><button class="btn" data-act="gmailbtn" data-kind="quote" data-id="' + b.id + '">Send quote with Accept button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button>' + (b.email ? '<button class="btn2" data-act="copyemail" data-id="' + b.id + '">Copy client email</button>' : '') + '</div>';
     } else if (cs === 'review') {
       h += '<div class="notice ok">' + (b.accepted_at ? 'Accepted by the client on ' + esc(stamp(b.accepted_at)) + '.' : 'Booked.') + ' Review the agreement, then approve it to send the signing link.</div>' +
         '<div class="row"><button class="btn2" data-act="preview" data-id="' + b.id + '">Review agreement</button><button class="btn" data-act="approve" data-id="' + b.id + '">Approve and send signing link</button></div>';
     } else if (cs === 'approved') {
-      h += '<div class="sub">Approved' + (b.approved_at ? ' on ' + esc(stamp(b.approved_at)) : '') + '. Waiting for the client to sign.</div><div class="row"><button class="btn2" data-act="sendlink" data-kind="contract" data-id="' + b.id + '">Send the link again</button><button class="btn2" data-act="gmailbtn" data-kind="contract" data-id="' + b.id + '">Email in Gmail with button</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button></div>';
+      h += '<div class="sub">Approved' + (b.approved_at ? ' on ' + esc(stamp(b.approved_at)) : '') + '. Waiting for the client to sign.</div><div class="row"><button class="btn2" data-act="gmailbtn" data-kind="contract" data-id="' + b.id + '">Send the link again</button><button class="btn2" data-act="copylink" data-id="' + b.id + '">Copy link</button></div>';
     } else if (cs === 'signed') {
       h += '<div class="notice">Signed by ' + esc(b.signed_name) + ' on ' + esc(stamp(b.signed_at)) + '. Please check the signed agreement. It is not in Contracts or the calendar until you approve it.</div>' +
         '<div class="row"><button class="btn2" data-act="previewsigned" data-id="' + b.id + '">Review signed agreement</button><button class="btn" data-act="approvesigned" data-id="' + b.id + '">Approve and confirm booking</button></div>';
